@@ -1,0 +1,61 @@
+namespace LZGChallenge2.Api.DTOs;
+
+public class PlayerDto
+{
+    public int Id { get; set; }
+    public string RiotId { get; set; } = null!;
+    public string GameName { get; set; } = null!;
+    public string TagLine { get; set; } = null!;
+    public string Region { get; set; } = null!;
+    public DateTime JoinedAt { get; set; }
+    public bool IsActive { get; set; }
+    public PlayerStatsDto? CurrentStats { get; set; }
+}
+
+public class CreatePlayerDto
+{
+    public string GameName { get; set; } = null!;
+    public string TagLine { get; set; } = null!;
+    public string Region { get; set; } = "EUW1";
+}
+
+public class PlayerStatsDto
+{
+    public string? CurrentTier { get; set; }
+    public string? CurrentRank { get; set; }
+    public int CurrentLeaguePoints { get; set; }
+    public int TotalGames { get; set; }
+    public int TotalWins { get; set; }
+    public int TotalLosses { get; set; }
+    public double WinRate { get; set; }
+    public double AverageKills { get; set; }
+    public double AverageDeaths { get; set; }
+    public double AverageAssists { get; set; }
+    public double KDA { get; set; }
+    public double AverageCreepScore { get; set; }
+    public double AverageVisionScore { get; set; }
+    public double AverageDamageDealt { get; set; }
+    public int CurrentWinStreak { get; set; }
+    public int CurrentLoseStreak { get; set; }
+    public int LongestWinStreak { get; set; }
+    public int LongestLoseStreak { get; set; }
+    public int NetLpChange { get; set; }
+    public DateTime LastUpdated { get; set; }
+}
+
+public class LeaderboardEntryDto
+{
+    public int PlayerId { get; set; }
+    public string GameName { get; set; } = null!;
+    public string TagLine { get; set; } = null!;
+    public string? CurrentTier { get; set; }
+    public string? CurrentRank { get; set; }
+    public int CurrentLeaguePoints { get; set; }
+    public double WinRate { get; set; }
+    public double KDA { get; set; }
+    public int TotalGames { get; set; }
+    public int NetLpChange { get; set; }
+    public int CurrentWinStreak { get; set; }
+    public int CurrentLoseStreak { get; set; }
+    public DateTime LastUpdated { get; set; }
+}

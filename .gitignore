@@ -1,0 +1,13 @@
+# Visual Studio / .NET
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Node/Front (si présent)
+node_modules/
+dist/
+build/
+.env
+.env.*

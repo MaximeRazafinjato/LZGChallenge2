@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(dotnet add package:*)",
+      "Bash(mkdir:*)",
+      "Bash(dotnet ef migrations:*)",
+      "Bash(rm:*)",
+      "Bash(pnpm add:*)",
+      "Bash(npx tailwindcss init:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(start cmd /k \"dotnet run\")",
+      "Bash(start cmd /k \"pnpm dev\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

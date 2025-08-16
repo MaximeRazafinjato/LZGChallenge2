@@ -1,0 +1,6 @@
+@LZGChallenge2.Api_HostAddress = https://localhost:44393
+
+GET {{LZGChallenge2.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
