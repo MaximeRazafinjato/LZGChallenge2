@@ -188,17 +188,51 @@ public class MatchUpdateService : IMatchUpdateService
                 .OrderByDescending(m => m.GameStartTime)
                 .ToListAsync();
             
-            if (!matches.Any())
-            {
-                _logger.LogWarning("No matches found for player {GameName}#{TagLine} to calculate stats", 
-                    player.GameName, player.TagLine);
-                return;
-            }
-            
             var stats = await _context.PlayerStats.FirstOrDefaultAsync(ps => ps.PlayerId == player.Id);
             if (stats == null)
             {
                 _logger.LogWarning("No stats record found for player {GameName}#{TagLine}", 
+                    player.GameName, player.TagLine);
+                return;
+            }
+            
+            if (!matches.Any())
+            {
+                // Vérifier s'il y a des données polluées à nettoyer
+                var hasStaleData = stats.TotalKills > 0 || stats.TotalDeaths > 0 || stats.TotalAssists > 0 ||
+                                  stats.AverageCreepScore > 0 || stats.AverageVisionScore > 0 || stats.AverageDamageDealt > 0 ||
+                                  stats.CurrentWinStreak > 0 || stats.CurrentLoseStreak > 0 ||
+                                  stats.LongestWinStreak > 0 || stats.LongestLoseStreak > 0;
+                
+                if (hasStaleData)
+                {
+                    _logger.LogWarning("Player {GameName}#{TagLine} has no matches but has stale stats - cleaning up", 
+                        player.GameName, player.TagLine);
+                }
+                else
+                {
+                    _logger.LogInformation("Player {GameName}#{TagLine} has no matches and stats are already clean", 
+                        player.GameName, player.TagLine);
+                }
+                
+                // TOUJOURS remettre toutes les statistiques détaillées à zéro (garder les W/L de l'API League)
+                stats.TotalKills = 0;
+                stats.TotalDeaths = 0;
+                stats.TotalAssists = 0;
+                stats.AverageCreepScore = 0;
+                stats.AverageVisionScore = 0;
+                stats.AverageDamageDealt = 0;
+                stats.CurrentWinStreak = 0;
+                stats.CurrentLoseStreak = 0;
+                stats.LongestWinStreak = 0;
+                stats.LongestLoseStreak = 0;
+                stats.TotalLpGained = 0;
+                stats.TotalLpLost = 0;
+                stats.LastUpdated = DateTime.UtcNow;
+                
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("Reset all detailed stats to zero for player {GameName}#{TagLine} (no matches found)", 
                     player.GameName, player.TagLine);
                 return;
             }
