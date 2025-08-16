@@ -79,6 +79,9 @@ Le bot nécessite les permissions suivantes:
 - `!stats <joueur>` - Affiche les statistiques d'un joueur
 - `!champions <joueur>` - Top champions d'un joueur
 - `!progress <joueur>` - Progression quotidienne d'un joueur
+- `!roles <joueur>` ou `!rôles <joueur>` - Répartition par rôle d'un joueur
+- `!mainrole <joueur>` ou `!main <joueur>` - Rôle principal d'un joueur
+- `!roleleaderboard <rôle>` ou `!rlb <rôle>` - Classement pour un rôle spécifique (top, jungle, mid, adc, support)
 
 ### Commandes de mise à jour
 
