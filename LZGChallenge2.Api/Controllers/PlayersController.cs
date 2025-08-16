@@ -490,6 +490,33 @@ public class PlayersController : ControllerBase
                         // 2. Mettre à jour les matches et statistiques détaillées (KDA, etc.) pour toute la saison
                         await _matchUpdateService.UpdatePlayerMatchesAsync(player, 500);
                         
+                        // 3. Vérification supplémentaire : si TotalGames = 0 mais stats non-nulles, forcer le nettoyage
+                        if (player.CurrentStats.TotalGames == 0)
+                        {
+                            var hasStaleStats = player.CurrentStats.TotalKills > 0 || player.CurrentStats.TotalDeaths > 0 || 
+                                               player.CurrentStats.TotalAssists > 0 || player.CurrentStats.CurrentWinStreak > 0 ||
+                                               player.CurrentStats.CurrentLoseStreak > 0;
+                            
+                            if (hasStaleStats)
+                            {
+                                _logger.LogWarning("Force cleaning stale stats for player {GameName}#{TagLine} with 0 total games", 
+                                    player.GameName, player.TagLine);
+                                
+                                player.CurrentStats.TotalKills = 0;
+                                player.CurrentStats.TotalDeaths = 0;
+                                player.CurrentStats.TotalAssists = 0;
+                                player.CurrentStats.AverageCreepScore = 0;
+                                player.CurrentStats.AverageVisionScore = 0;
+                                player.CurrentStats.AverageDamageDealt = 0;
+                                player.CurrentStats.CurrentWinStreak = 0;
+                                player.CurrentStats.CurrentLoseStreak = 0;
+                                player.CurrentStats.LongestWinStreak = 0;
+                                player.CurrentStats.LongestLoseStreak = 0;
+                                player.CurrentStats.TotalLpGained = 0;
+                                player.CurrentStats.TotalLpLost = 0;
+                            }
+                        }
+                        
                         _logger.LogInformation("Successfully refreshed player {GameName}#{TagLine}: {Tier} {Rank} ({LP} LP)", 
                             player.GameName, player.TagLine, player.CurrentStats.CurrentTier, 
                             player.CurrentStats.CurrentRank, player.CurrentStats.CurrentLeaguePoints);
