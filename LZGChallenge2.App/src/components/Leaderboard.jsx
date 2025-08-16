@@ -18,7 +18,8 @@ import {
   MenuItem,
   Avatar,
   LinearProgress,
-  Skeleton
+  Skeleton,
+  Tooltip
 } from '@mui/material'
 import { 
   EmojiEvents, 
@@ -27,12 +28,17 @@ import {
   Bolt,
   Sports,
   LocalFireDepartment,
-  HeartBroken
+  HeartBroken,
+  SportsEsports
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
+import ChampionModal from './ChampionModal'
+import { getChampionImageUrlNormalized } from '../utils/championUtils'
 
 const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => {
   const [sortBy, setSortBy] = useState('lp')
+  const [championModalOpen, setChampionModalOpen] = useState(false)
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
 
   const handleSortChange = (newSortBy) => {
     setSortBy(newSortBy)
@@ -117,6 +123,11 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
     if (kda >= 2) return '#50C878'
     if (kda >= 1) return '#F39C12'
     return '#E74C3C'
+  }
+
+  const handleChampionClick = (player) => {
+    setSelectedPlayer(player)
+    setChampionModalOpen(true)
   }
 
   const sortOptions = [
@@ -231,6 +242,7 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
                     <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>LP</TableCell>
                     <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>Winrate</TableCell>
                     <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>KDA</TableCell>
+                    <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>Champions</TableCell>
                     <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>Parties</TableCell>
                     <TableCell sx={{ color: 'text.primary', fontWeight: 600 }}>Progression</TableCell>
                   </TableRow>
@@ -339,6 +351,95 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
                       </TableCell>
                       
                       <TableCell>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            gap: 0.5,
+                            cursor: 'pointer',
+                            '&:hover': {
+                              transform: 'scale(1.05)',
+                              transition: 'all 0.2s ease'
+                            }
+                          }}
+                          onClick={() => handleChampionClick(player)}
+                        >
+                            {player.topChampions?.length > 0 ? (
+                              player.topChampions.slice(0, 3).map((champion, idx) => (
+                                <Tooltip 
+                                  key={champion.championId}
+                                  title={`${champion.championName} - ${champion.gamesPlayed} parties (${champion.winRate?.toFixed(1)}%)`}
+                                >
+                                  <Box
+                                    sx={{
+                                      position: 'relative',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      width: 32,
+                                      height: 32,
+                                      flexShrink: 0,
+                                      '&:hover': {
+                                        transform: 'scale(1.1)',
+                                        transition: 'all 0.2s ease'
+                                      }
+                                    }}
+                                  >
+                                    <img
+                                      src={getChampionImageUrlNormalized(champion.championName)}
+                                      alt={champion.championName}
+                                      style={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        border: '2px solid rgba(200,155,60,0.5)',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                        display: 'block',
+                                        flexShrink: 0
+                                      }}
+                                      onError={(e) => {
+                                        e.target.src = 'https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/Unknown.png'
+                                      }}
+                                    />
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        position: 'absolute',
+                                        bottom: -2,
+                                        right: -2,
+                                        backgroundColor: 'rgba(200,155,60,0.9)',
+                                        color: '#1E2328',
+                                        borderRadius: '50%',
+                                        width: 16,
+                                        height: 16,
+                                        fontSize: '0.6rem',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: 'unset'
+                                      }}
+                                    >
+                                      {champion.gamesPlayed}
+                                    </Typography>
+                                  </Box>
+                                </Tooltip>
+                              ))
+                            ) : (
+                              <Chip
+                                icon={<SportsEsports />}
+                                label="Aucun champion"
+                                size="small"
+                                sx={{
+                                  backgroundColor: 'rgba(120,120,120,0.2)',
+                                  color: 'text.secondary',
+                                  fontSize: '0.7rem'
+                                }}
+                              />
+                            )}
+                        </Box>
+                      </TableCell>
+                      
+                      <TableCell>
                         <Typography variant="body1" sx={{ fontWeight: 600 }}>
                           {player.totalGames}
                         </Typography>
@@ -394,6 +495,14 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
           )}
         </CardContent>
       </Card>
+
+      {/* Champion Modal */}
+      <ChampionModal
+        open={championModalOpen}
+        onClose={() => setChampionModalOpen(false)}
+        playerId={selectedPlayer?.playerId}
+        playerName={selectedPlayer ? `${selectedPlayer.gameName}#${selectedPlayer.tagLine}` : ''}
+      />
     </motion.div>
   )
 }

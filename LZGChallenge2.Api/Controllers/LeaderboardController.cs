@@ -19,14 +19,14 @@ public class LeaderboardController : ControllerBase
     }
     
     [HttpGet]
-    public async Task<ActionResult<List<LeaderboardEntryDto>>> GetLeaderboard([FromQuery] string? sortBy = "lp")
+    public async Task<ActionResult<List<LeaderboardEntryWithChampionsDto>>> GetLeaderboard([FromQuery] string? sortBy = "lp")
     {
         // Récupérer les joueurs actifs
         var players = await _context.Players
             .Find(p => p.IsActive)
             .ToListAsync();
 
-        var leaderboard = new List<LeaderboardEntryDto>();
+        var leaderboard = new List<LeaderboardEntryWithChampionsDto>();
         
         foreach (var p in players)
         {
@@ -36,7 +36,29 @@ public class LeaderboardController : ControllerBase
 
             if (stats != null)
             {
-                leaderboard.Add(new LeaderboardEntryDto
+                // Récupérer les champions pour ce joueur et trier en mémoire
+                var allChampions = await _context.ChampionStats
+                    .Find(cs => cs.PlayerId == p.Id)
+                    .ToListAsync();
+
+                var topChampions = allChampions
+                    .OrderByDescending(cs => cs.GamesPlayed)
+                    .ThenByDescending(cs => cs.WinRate)
+                    .Take(3)
+                    .ToList();
+
+                var topChampionsDto = topChampions.Select(tc => new TopChampionDto
+                {
+                    ChampionId = tc.ChampionId,
+                    ChampionName = tc.ChampionName,
+                    GamesPlayed = tc.GamesPlayed,
+                    Wins = tc.Wins,
+                    Losses = tc.Losses,
+                    WinRate = tc.WinRate,
+                    KDA = tc.KDA
+                }).ToList();
+
+                leaderboard.Add(new LeaderboardEntryWithChampionsDto
                 {
                     PlayerId = p.Id,
                     GameName = p.GameName,
@@ -60,7 +82,8 @@ public class LeaderboardController : ControllerBase
                     AverageCreepScore = stats.AverageCreepScore,
                     AverageVisionScore = stats.AverageVisionScore,
                     AverageDamageDealt = stats.AverageDamageDealt,
-                    LastUpdated = stats.LastUpdated
+                    LastUpdated = stats.LastUpdated,
+                    TopChampions = topChampionsDto
                 });
             }
         }
