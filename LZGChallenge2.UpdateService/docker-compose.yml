@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  lzg-update-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Configuration MongoDB (obligatoire)
+      - MongoDB__ConnectionString=${MongoDB__ConnectionString}
+      - MongoDB__DatabaseName=${MongoDB__DatabaseName:-LZGChallenge2Db}
+      
+      # Configuration Riot API (obligatoire)
+      - RiotApi__ApiKey=${RiotApi__ApiKey}
+      - RiotApi__BaseUrl=${RiotApi__BaseUrl:-https://euw1.api.riotgames.com}
+      - RiotApi__RegionalUrl=${RiotApi__RegionalUrl:-https://europe.api.riotgames.com}
+      
+      # Configuration optionnelle
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      
+      # Logs
+      - Logging__LogLevel__Default=${LOG_LEVEL:-Information}
+    
+    # Important: ne pas redémarrer automatiquement
+    # Ce service est conçu pour être exécuté ponctuellement par cron
+    restart: "no"
+    
+    # Réseau pour communiquer avec l'API si dans le même stack
+    networks:
+      - lzg-network
+    
+    # Optionnel: mount du volume pour les logs persistants
+    volumes:
+      - ./logs:/app/logs
+
+# Réseau partagé si l'API LZG Challenge est aussi en Docker
+networks:
+  lzg-network:
+    external: true
