@@ -33,8 +33,33 @@ public class MatchUpdateService : IMatchUpdateService
         {
             _logger.LogInformation("Updating matches for player {GameName}#{TagLine}", player.GameName, player.TagLine);
             
-            // Récupérer les IDs des matches récents (Solo/Duo uniquement)
-            var matchIds = await _riotApiService.GetMatchIdsByPuuidAsync(player.Puuid, maxMatches);
+            // Récupérer les IDs des matches de la saison (Solo/Duo uniquement)
+            var allMatchIds = new List<string>();
+            var batchSize = 100; // Limite de l'API Riot
+            var start = 0;
+            
+            while (allMatchIds.Count < maxMatches)
+            {
+                var remaining = Math.Min(batchSize, maxMatches - allMatchIds.Count);
+                var batchMatchIds = await _riotApiService.GetMatchIdsByPuuidAsync(player.Puuid, remaining, start);
+                
+                if (!batchMatchIds.Any())
+                {
+                    // Plus de matches disponibles
+                    break;
+                }
+                
+                allMatchIds.AddRange(batchMatchIds);
+                start += batchMatchIds.Count;
+                
+                // Si on a reçu moins de matches que demandé, on a atteint la fin
+                if (batchMatchIds.Count < remaining)
+                {
+                    break;
+                }
+            }
+            
+            var matchIds = allMatchIds;
             
             if (!matchIds.Any())
             {
@@ -51,22 +76,34 @@ public class MatchUpdateService : IMatchUpdateService
             
             var newMatchIds = matchIds.Where(id => !existingMatchIds.Contains(id)).ToList();
             
-            _logger.LogInformation("Processing {Count} new matches for player {GameName}#{TagLine}", 
-                newMatchIds.Count, player.GameName, player.TagLine);
+            _logger.LogInformation("Found {TotalMatches} total matches, {NewMatches} new matches for player {GameName}#{TagLine}", 
+                matchIds.Count, newMatchIds.Count, player.GameName, player.TagLine);
             
-            foreach (var matchId in newMatchIds)
+            // Traiter seulement les nouveaux matches pour éviter les appels API inutiles
+            if (newMatchIds.Any())
             {
-                await ProcessMatchAsync(player, matchId);
-                
-                // Petite pause pour éviter de surcharger l'API
-                await Task.Delay(100);
+                foreach (var matchId in newMatchIds)
+                {
+                    await ProcessMatchAsync(player, matchId);
+                    
+                    // Petite pause pour éviter de surcharger l'API
+                    await Task.Delay(100);
+                }
+                _logger.LogInformation("Processed {Count} new matches for player {GameName}#{TagLine}", 
+                    newMatchIds.Count, player.GameName, player.TagLine);
+            }
+            else
+            {
+                _logger.LogInformation("No new matches to process for player {GameName}#{TagLine}", 
+                    player.GameName, player.TagLine);
             }
             
             // Mettre à jour les statistiques après avoir ajouté les matches
+            // Toujours recalculer même s'il n'y a pas de nouveaux matches
             await UpdatePlayerStatsAsync(player);
             
-            _logger.LogInformation("Successfully updated matches for player {GameName}#{TagLine}", 
-                player.GameName, player.TagLine);
+            _logger.LogInformation("Successfully updated stats for player {GameName}#{TagLine} - Total matches found: {TotalMatches}", 
+                player.GameName, player.TagLine, matchIds.Count);
             
             return true;
         }
@@ -166,32 +203,30 @@ public class MatchUpdateService : IMatchUpdateService
                 return;
             }
             
-            // Calculer les statistiques basées sur les matches
-            var totalMatches = matches.Count;
-            var wins = matches.Count(m => m.Win);
-            var losses = totalMatches - wins;
+            // Calculer les statistiques détaillées basées sur les matches analysés
+            // IMPORTANT: On garde les TotalGames/TotalWins/TotalLosses de l'API League (plus précis)
+            // et on calcule seulement les stats détaillées (KDA, CS, etc.) sur les matches analysés
+            var analyzedMatches = matches.Count;
             
             var totalKills = matches.Sum(m => m.Kills);
             var totalDeaths = matches.Sum(m => m.Deaths);
             var totalAssists = matches.Sum(m => m.Assists);
             
-            var avgKills = totalMatches > 0 ? (double)totalKills / totalMatches : 0;
-            var avgDeaths = totalMatches > 0 ? (double)totalDeaths / totalMatches : 0;
-            var avgAssists = totalMatches > 0 ? (double)totalAssists / totalMatches : 0;
+            var avgKills = analyzedMatches > 0 ? (double)totalKills / analyzedMatches : 0;
+            var avgDeaths = analyzedMatches > 0 ? (double)totalDeaths / analyzedMatches : 0;
+            var avgAssists = analyzedMatches > 0 ? (double)totalAssists / analyzedMatches : 0;
             var kda = totalDeaths > 0 ? (double)(totalKills + totalAssists) / totalDeaths : totalKills + totalAssists;
             
-            var avgCs = totalMatches > 0 ? matches.Average(m => m.CreepScore) : 0;
-            var avgVisionScore = totalMatches > 0 ? matches.Average(m => m.VisionScore) : 0;
-            var avgDamage = totalMatches > 0 ? matches.Average(m => m.TotalDamageDealtToChampions) : 0;
+            var avgCs = analyzedMatches > 0 ? matches.Average(m => m.CreepScore) : 0;
+            var avgVisionScore = analyzedMatches > 0 ? matches.Average(m => m.VisionScore) : 0;
+            var avgDamage = analyzedMatches > 0 ? matches.Average(m => m.TotalDamageDealtToChampions) : 0;
             
             // Calculer les séries de victoires/défaites
             var currentStreak = CalculateCurrentStreak(matches);
             var (longestWinStreak, longestLoseStreak) = CalculateLongestStreaks(matches);
             
-            // Mettre à jour les stats (garder les infos de rang existantes)
-            stats.TotalGames = totalMatches;
-            stats.TotalWins = wins;
-            stats.TotalLosses = losses;
+            // Mettre à jour les stats (garder les TotalGames/TotalWins/TotalLosses de l'API League)
+            // NE PAS écraser les vraies statistiques W/L qui viennent de l'API League
             stats.TotalKills = totalKills;
             stats.TotalDeaths = totalDeaths;
             stats.TotalAssists = totalAssists;
@@ -207,8 +242,8 @@ public class MatchUpdateService : IMatchUpdateService
             
             await _context.SaveChangesAsync();
             
-            _logger.LogInformation("Updated stats for player {GameName}#{TagLine}: {Wins}W/{Losses}L, KDA: {KDA:F2}", 
-                player.GameName, player.TagLine, wins, losses, kda);
+            _logger.LogInformation("Updated stats for player {GameName}#{TagLine}: {TotalGames} games total, {AnalyzedMatches} analyzed, KDA: {KDA:F2}", 
+                player.GameName, player.TagLine, stats.TotalGames, analyzedMatches, kda);
         }
         catch (Exception ex)
         {

@@ -302,7 +302,7 @@ public class PlayersController : ControllerBase
         
         try
         {
-            // Récupérer les informations de rang actuelles
+            // 1. Récupérer les informations de rang actuelles
             var leagueEntries = await _riotApiService.GetLeagueEntriesByPuuidAsync(player.Puuid);
             var soloQEntry = leagueEntries.FirstOrDefault(e => e.QueueType == "RANKED_SOLO_5x5");
             
@@ -312,12 +312,12 @@ public class PlayersController : ControllerBase
                 player.CurrentStats.CurrentTier = soloQEntry?.Tier;
                 player.CurrentStats.CurrentRank = soloQEntry?.Rank;
                 player.CurrentStats.CurrentLeaguePoints = soloQEntry?.LeaguePoints ?? 0;
-                player.CurrentStats.TotalGames = (soloQEntry?.Wins ?? 0) + (soloQEntry?.Losses ?? 0);
-                player.CurrentStats.TotalWins = soloQEntry?.Wins ?? 0;
-                player.CurrentStats.TotalLosses = soloQEntry?.Losses ?? 0;
                 player.CurrentStats.LastUpdated = DateTime.UtcNow;
                 
                 await _context.SaveChangesAsync();
+                
+                // 2. Mettre à jour les matches et statistiques détaillées (KDA, etc.) pour toute la saison
+                await _matchUpdateService.UpdatePlayerMatchesAsync(player, 500);
                 
                 _logger.LogInformation("Refreshed rank for player {GameName}#{TagLine}: {Tier} {Rank} ({LP} LP)", 
                     player.GameName, player.TagLine, player.CurrentStats.CurrentTier, 
