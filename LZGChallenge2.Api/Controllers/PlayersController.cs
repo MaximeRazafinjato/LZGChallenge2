@@ -202,6 +202,22 @@ public class PlayersController : ControllerBase
 
             _logger.LogInformation("Player created: {GameName}#{TagLine}", player.GameName, player.TagLine);
 
+            // Lancer automatiquement la mise à jour des matches et statistiques détaillées
+            try
+            {
+                _logger.LogInformation("Starting automatic data update for new player {GameName}#{TagLine}", player.GameName, player.TagLine);
+                await _matchUpdateService.UpdatePlayerMatchesAsync(player);
+                _logger.LogInformation("Successfully updated data for new player {GameName}#{TagLine}", player.GameName, player.TagLine);
+                
+                // Notifier les clients connectés
+                await _hubContext.Clients.All.SendAsync("PlayerAdded", player);
+            }
+            catch (Exception updateEx)
+            {
+                _logger.LogError(updateEx, "Error updating data for new player {GameName}#{TagLine}, but player was created successfully", player.GameName, player.TagLine);
+                // On ne fait pas échouer la création du joueur si la mise à jour échoue
+            }
+
             return CreatedAtAction(nameof(GetPlayer), new { id = player.Id }, player);
         }
         catch (Exception ex)

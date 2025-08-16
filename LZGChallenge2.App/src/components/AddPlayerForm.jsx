@@ -73,16 +73,16 @@ const AddPlayerForm = ({ open, onClose, onPlayerAdded }) => {
         const newPlayer = await response.json()
         setMessage({
           type: 'success',
-          text: `${formData.gameName}#${formData.tagLine} a été ajouté avec succès !`
+          text: `${formData.gameName}#${formData.tagLine} a été ajouté avec succès ! Récupération des matches en cours...`
         })
         setFormData({ gameName: '', tagLine: '', region: 'EUW1' })
         onPlayerAdded?.(newPlayer)
         
-        // Fermer la modal après un court délai pour montrer le message de succès
+        // Fermer la modal après un délai pour montrer le message de succès
         setTimeout(() => {
           onClose?.()
           setMessage({ type: '', text: '' })
-        }, 1500)
+        }, 3000)
       } else {
         const errorText = await response.text()
         setMessage({
@@ -289,7 +289,7 @@ const AddPlayerForm = ({ open, onClose, onPlayerAdded }) => {
             }
           }}
         >
-          {isSubmitting ? 'Ajout en cours...' : 'Rejoindre le Challenge'}
+          {isSubmitting ? 'Ajout et récupération des données...' : 'Rejoindre le Challenge'}
         </Button>
       </DialogActions>
     </Dialog>
