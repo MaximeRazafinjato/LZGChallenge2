@@ -32,7 +32,8 @@ public class PlayerStats
     public double AverageKills => TotalGames > 0 ? TotalKills / TotalGames : 0;
     public double AverageDeaths => TotalGames > 0 ? TotalDeaths / TotalGames : 0;
     public double AverageAssists => TotalGames > 0 ? TotalAssists / TotalGames : 0;
-    public double KDA => TotalDeaths > 0 ? (TotalKills + TotalAssists) / TotalDeaths : TotalKills + TotalAssists;
+    public double KDA => TotalGames > 0 && TotalDeaths > 0 ? (TotalKills + TotalAssists) / TotalDeaths : 
+                         TotalGames > 0 ? TotalKills + TotalAssists : 0;
     
     // Autres moyennes
     public double AverageCreepScore { get; set; }
