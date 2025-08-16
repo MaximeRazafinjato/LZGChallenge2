@@ -40,6 +40,7 @@ builder.Services.AddHttpClient<IRiotApiService, RiotApiService>();
 // Register services
 builder.Services.AddSingleton<RateLimitService>();
 builder.Services.AddScoped<IRiotApiService, RiotApiService>();
+builder.Services.AddScoped<ISeasonService, SeasonService>();
 builder.Services.AddScoped<IMatchUpdateService, MatchUpdateService>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

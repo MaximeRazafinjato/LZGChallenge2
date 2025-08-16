@@ -22,6 +22,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddHttpClient<IRiotApiService, RiotApiService>();
 builder.Services.AddSingleton<RateLimitService>();
+builder.Services.AddScoped<ISeasonService, SeasonService>();
 builder.Services.AddScoped<MatchUpdateService>();
 
 builder.Services.AddHostedService<DiscordBotService>();
