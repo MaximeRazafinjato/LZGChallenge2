@@ -4,7 +4,8 @@
       "Bash(dotnet build)",
       "Bash(pnpm build:*)",
       "Bash(dotnet add package:*)",
-      "Bash(dotnet add reference:*)"
+      "Bash(dotnet add reference:*)",
+      "Bash(dotnet ef database:*)"
     ],
     "defaultMode": "acceptEdits"
   }

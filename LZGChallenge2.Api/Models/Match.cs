@@ -22,6 +22,8 @@ public class Match
     
     public int QueueId { get; set; } = 420; // Solo/Duo Queue uniquement
     
+    public int Season { get; set; } // Saison League of Legends (ex: 14 pour la saison 2024)
+    
     // Stats du joueur dans cette partie
     public int Kills { get; set; }
     public int Deaths { get; set; }

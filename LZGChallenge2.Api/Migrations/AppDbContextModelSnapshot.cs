@@ -156,6 +156,9 @@ namespace LZGChallenge2.Api.Migrations
                     b.Property<string>("Rank")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Season")
+                        .HasColumnType("int");
+
                     b.Property<string>("Tier")
                         .HasColumnType("nvarchar(max)");
 
