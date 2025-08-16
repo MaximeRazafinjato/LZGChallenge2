@@ -283,4 +283,82 @@ public class LeaderboardController : ControllerBase
         
         return Ok(stats);
     }
+    
+    [HttpGet("summary")]
+    public async Task<ActionResult<object>> GetLeaderboardSummary()
+    {
+        try
+        {
+            // Récupérer les joueurs actifs avec leurs statistiques
+            var players = await _context.Players
+                .Find(p => p.IsActive)
+                .ToListAsync();
+
+            var totalPlayers = players.Count;
+            
+            if (totalPlayers == 0)
+            {
+                return Ok(new
+                {
+                    TotalPlayers = 0,
+                    TotalGames = 0,
+                    AverageWinRate = 0.0,
+                    TopPlayer = (object?)null
+                });
+            }
+
+            // Calculer les statistiques totales
+            var playerStats = new List<object>();
+            var totalGames = 0;
+            var totalWinRate = 0.0;
+            object? topPlayer = null;
+            var highestScore = -1;
+
+            foreach (var player in players)
+            {
+                var stats = await _context.PlayerStats
+                    .Find(ps => ps.PlayerId == player.Id)
+                    .FirstOrDefaultAsync();
+
+                if (stats != null)
+                {
+                    totalGames += stats.TotalGames;
+                    totalWinRate += stats.WinRate;
+                    
+                    // Calculer le score de rang pour déterminer le leader
+                    var rankScore = CalculateRankScore(stats.CurrentTier, stats.CurrentRank, stats.CurrentLeaguePoints);
+                    
+                    if (rankScore > highestScore)
+                    {
+                        highestScore = rankScore;
+                        topPlayer = new
+                        {
+                            GameName = player.GameName,
+                            TagLine = player.TagLine,
+                            CurrentTier = stats.CurrentTier,
+                            CurrentRank = stats.CurrentRank,
+                            CurrentLeaguePoints = stats.CurrentLeaguePoints
+                        };
+                    }
+                }
+            }
+
+            var averageWinRate = totalPlayers > 0 ? Math.Round(totalWinRate / totalPlayers, 1) : 0.0;
+
+            var summary = new
+            {
+                TotalPlayers = totalPlayers,
+                TotalGames = totalGames,
+                AverageWinRate = averageWinRate,
+                TopPlayer = topPlayer
+            };
+
+            return Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving leaderboard summary");
+            return StatusCode(500, "Erreur lors de la récupération du résumé du classement");
+        }
+    }
 }
