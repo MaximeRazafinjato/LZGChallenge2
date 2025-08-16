@@ -16,12 +16,11 @@ import {
   Schedule,
   SportsEsports,
   TrendingUp,
-  TrendingDown,
-  Refresh
+  TrendingDown
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 
-const PlayerCard = ({ player, onRemove, onRefreshRank, index }) => {
+const PlayerCard = ({ player, onRemove, index }) => {
   const formatJoinDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -106,37 +105,20 @@ const PlayerCard = ({ player, onRemove, onRefreshRank, index }) => {
               </Box>
             </Box>
             
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="Actualiser le rang">
-                <IconButton
-                  onClick={() => onRefreshRank(player.id)}
-                  size="small"
-                  sx={{
-                    color: 'primary.main',
-                    '&:hover': {
-                      backgroundColor: 'rgba(200,155,60,0.1)',
-                    }
-                  }}
-                >
-                  <Refresh fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              
-              <Tooltip title="Retirer du challenge">
-                <IconButton
-                  onClick={() => onRemove(player.id)}
-                  size="small"
-                  sx={{
-                    color: 'error.main',
-                    '&:hover': {
-                      backgroundColor: 'rgba(231,76,60,0.1)',
-                    }
-                  }}
-                >
-                  <Delete fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Box>
+            <Tooltip title="Retirer du challenge">
+              <IconButton
+                onClick={() => onRemove(player.id)}
+                size="small"
+                sx={{
+                  color: 'error.main',
+                  '&:hover': {
+                    backgroundColor: 'rgba(231,76,60,0.1)',
+                  }
+                }}
+              >
+                <Delete fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
 
           {/* Région */}
@@ -272,7 +254,7 @@ const PlayerCard = ({ player, onRemove, onRefreshRank, index }) => {
   )
 }
 
-const PlayersGrid = ({ players = [], onRemovePlayer, onRefreshRank, loading }) => {
+const PlayersGrid = ({ players = [], onRemovePlayer, loading }) => {
   if (loading) {
     return (
       <Box>
@@ -344,7 +326,6 @@ const PlayersGrid = ({ players = [], onRemovePlayer, onRefreshRank, loading }) =
                 <PlayerCard 
                   player={player} 
                   onRemove={onRemovePlayer}
-                  onRefreshRank={onRefreshRank}
                   index={index}
                 />
               </Grid>

@@ -83,6 +83,34 @@ function App() {
     }
   }
 
+  const refreshAndLoadData = async () => {
+    setLoading(true)
+    try {
+      // Actualiser les statistiques de tous les joueurs en une seule fois
+      const response = await fetch('https://localhost:44393/api/players/refresh-all-ranks', {
+        method: 'POST',
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Tous les rangs actualisés avec succès:', result.message)
+        
+        // Charger toutes les données mises à jour
+        await Promise.all([
+          loadPlayers(),
+          loadLeaderboard(),
+          loadSummary()
+        ])
+      } else {
+        console.error('Erreur lors de l\'actualisation des rangs')
+      }
+    } catch (error) {
+      console.error('Erreur lors du refresh global:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const loadPlayers = async () => {
     try {
       const response = await fetch('https://localhost:44393/api/players')
@@ -150,6 +178,26 @@ function App() {
     }
   }
 
+  const refreshAllPlayersRank = async () => {
+    try {
+      // Récupérer la liste actuelle des joueurs
+      const response = await fetch('https://localhost:44393/api/players')
+      if (response.ok) {
+        const currentPlayers = await response.json()
+        
+        // Actualiser le rang de tous les joueurs actifs
+        const refreshPromises = currentPlayers
+          .filter(player => player.isActive)
+          .map(player => refreshPlayerRank(player.id))
+        
+        await Promise.all(refreshPromises)
+        console.log('Tous les rangs actualisés avec succès')
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'actualisation de tous les rangs:', error)
+    }
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -176,7 +224,7 @@ function App() {
           <Leaderboard 
             leaderboard={leaderboard} 
             loading={loading}
-            onRefresh={loadLeaderboard}
+            onRefresh={refreshAndLoadData}
             onSortChange={loadLeaderboard}
           />
           
@@ -184,7 +232,6 @@ function App() {
           <PlayersGrid 
             players={players} 
             onRemovePlayer={removePlayer}
-            onRefreshRank={refreshPlayerRank}
             loading={loading}
           />
         </Container>

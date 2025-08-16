@@ -2,14 +2,12 @@ import {
   AppBar, 
   Toolbar, 
   Typography, 
-  Box, 
-  IconButton,
+  Box,
   Chip,
   Avatar
 } from '@mui/material'
 import { 
   EmojiEvents,
-  Refresh,
   MenuBook
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
@@ -65,7 +63,7 @@ const Header = () => {
           </Box>
         </Box>
 
-        {/* Badges et actions */}
+        {/* Badges */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Chip
             icon={<MenuBook />}
@@ -78,20 +76,6 @@ const Header = () => {
               fontWeight: 600
             }}
           />
-          
-          <IconButton
-            sx={{
-              background: 'rgba(200,155,60,0.1)',
-              border: '1px solid rgba(200,155,60,0.3)',
-              '&:hover': {
-                background: 'rgba(200,155,60,0.2)',
-                transform: 'rotate(180deg)',
-                transition: 'all 0.3s ease'
-              }
-            }}
-          >
-            <Refresh sx={{ color: 'primary.main' }} />
-          </IconButton>
         </Box>
       </Toolbar>
     </AppBar>
