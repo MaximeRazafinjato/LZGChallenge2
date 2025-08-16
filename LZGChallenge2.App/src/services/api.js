@@ -39,4 +39,23 @@ export const championStatsApi = {
   getByPlayerName: (gameName, tagLine) => api.get(`/championstats/player/${gameName}/${tagLine}`),
 };
 
+// Matches API - SoloQ avec détection automatique de saison
+export const matchesApi = {
+  getByPlayerId: (playerId, limit = 50) => api.get(`/matches/${playerId}?limit=${limit}`),
+  getRecent: (playerId, limit = 10) => api.get(`/matches/${playerId}/recent/${limit}`),
+  getFiltered: (playerId, filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.period) params.append('period', filters.period);
+    if (filters.result) params.append('result', filters.result);
+    if (filters.champion) params.append('champion', filters.champion);
+    if (filters.position) params.append('position', filters.position);
+    if (filters.limit) params.append('limit', filters.limit);
+    if (filters.offset) params.append('offset', filters.offset);
+    
+    return api.get(`/matches/${playerId}/filtered?${params.toString()}`);
+  },
+  getStats: (playerId) => api.get(`/matches/${playerId}/stats`),
+  getSeasonInfo: () => api.get('/matches/season-info'),
+};
+
 export default api;

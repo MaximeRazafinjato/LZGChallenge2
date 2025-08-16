@@ -33,11 +33,13 @@ import {
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import ChampionModal from './ChampionModal'
+import MatchHistoryModal from './MatchHistoryModal'
 import { getChampionImageUrlNormalized } from '../utils/championUtils'
 
 const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => {
   const [sortBy, setSortBy] = useState('lp')
   const [championModalOpen, setChampionModalOpen] = useState(false)
+  const [matchHistoryModalOpen, setMatchHistoryModalOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
 
   const handleSortChange = (newSortBy) => {
@@ -128,6 +130,11 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
   const handleChampionClick = (player) => {
     setSelectedPlayer(player)
     setChampionModalOpen(true)
+  }
+
+  const handlePlayerClick = (player) => {
+    setSelectedPlayer(player)
+    setMatchHistoryModalOpen(true)
   }
 
   const sortOptions = [
@@ -271,7 +278,19 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
                       </TableCell>
                       
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 2,
+                            cursor: 'pointer',
+                            '&:hover': {
+                              transform: 'scale(1.02)',
+                              transition: 'all 0.2s ease'
+                            }
+                          }}
+                          onClick={() => handlePlayerClick(player)}
+                        >
                           <Avatar
                             sx={{
                               bgcolor: getTierColor(player.currentTier),
@@ -500,6 +519,14 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
       <ChampionModal
         open={championModalOpen}
         onClose={() => setChampionModalOpen(false)}
+        playerId={selectedPlayer?.playerId}
+        playerName={selectedPlayer ? `${selectedPlayer.gameName}#${selectedPlayer.tagLine}` : ''}
+      />
+
+      {/* Match History Modal */}
+      <MatchHistoryModal
+        open={matchHistoryModalOpen}
+        onClose={() => setMatchHistoryModalOpen(false)}
         playerId={selectedPlayer?.playerId}
         playerName={selectedPlayer ? `${selectedPlayer.gameName}#${selectedPlayer.tagLine}` : ''}
       />
