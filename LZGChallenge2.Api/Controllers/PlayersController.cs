@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Microsoft.AspNetCore.SignalR;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Models;
@@ -13,14 +13,14 @@ namespace LZGChallenge2.Api.Controllers;
 [Route("api/[controller]")]
 public class PlayersController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly MongoDbContext _context;
     private readonly IRiotApiService _riotApiService;
     private readonly IMatchUpdateService _matchUpdateService;
     private readonly IHubContext<LeaderboardHub> _hubContext;
     private readonly ILogger<PlayersController> _logger;
     
     public PlayersController(
-        AppDbContext context,
+        MongoDbContext context,
         IRiotApiService riotApiService,
         IMatchUpdateService matchUpdateService,
         IHubContext<LeaderboardHub> hubContext,
@@ -37,9 +37,17 @@ public class PlayersController : ControllerBase
     public async Task<ActionResult<List<PlayerDto>>> GetPlayers()
     {
         var players = await _context.Players
-            .Include(p => p.CurrentStats)
-            .Where(p => p.IsActive)
-            .Select(p => new PlayerDto
+            .Find(p => p.IsActive)
+            .ToListAsync();
+
+        var playerDtos = new List<PlayerDto>();
+        foreach (var p in players)
+        {
+            var stats = await _context.PlayerStats
+                .Find(ps => ps.PlayerId == p.Id)
+                .FirstOrDefaultAsync();
+
+            playerDtos.Add(new PlayerDto
             {
                 Id = p.Id,
                 RiotId = p.RiotId,
@@ -48,47 +56,51 @@ public class PlayersController : ControllerBase
                 Region = p.Region,
                 JoinedAt = p.JoinedAt,
                 IsActive = p.IsActive,
-                CurrentStats = p.CurrentStats == null ? null : new PlayerStatsDto
+                CurrentStats = stats == null ? null : new PlayerStatsDto
                 {
-                    CurrentTier = p.CurrentStats.CurrentTier,
-                    CurrentRank = p.CurrentStats.CurrentRank,
-                    CurrentLeaguePoints = p.CurrentStats.CurrentLeaguePoints,
-                    TotalGames = p.CurrentStats.TotalGames,
-                    TotalWins = p.CurrentStats.TotalWins,
-                    TotalLosses = p.CurrentStats.TotalLosses,
-                    WinRate = p.CurrentStats.WinRate,
-                    AverageKills = p.CurrentStats.AverageKills,
-                    AverageDeaths = p.CurrentStats.AverageDeaths,
-                    AverageAssists = p.CurrentStats.AverageAssists,
-                    KDA = p.CurrentStats.KDA,
-                    AverageCreepScore = p.CurrentStats.AverageCreepScore,
-                    AverageVisionScore = p.CurrentStats.AverageVisionScore,
-                    AverageDamageDealt = p.CurrentStats.AverageDamageDealt,
-                    CurrentWinStreak = p.CurrentStats.CurrentWinStreak,
-                    CurrentLoseStreak = p.CurrentStats.CurrentLoseStreak,
-                    LongestWinStreak = p.CurrentStats.LongestWinStreak,
-                    LongestLoseStreak = p.CurrentStats.LongestLoseStreak,
-                    NetLpChange = p.CurrentStats.NetLpChange,
-                    LastUpdated = p.CurrentStats.LastUpdated
+                    CurrentTier = stats.CurrentTier,
+                    CurrentRank = stats.CurrentRank,
+                    CurrentLeaguePoints = stats.CurrentLeaguePoints,
+                    TotalGames = stats.TotalGames,
+                    TotalWins = stats.TotalWins,
+                    TotalLosses = stats.TotalLosses,
+                    WinRate = stats.WinRate,
+                    AverageKills = stats.AverageKills,
+                    AverageDeaths = stats.AverageDeaths,
+                    AverageAssists = stats.AverageAssists,
+                    KDA = stats.KDA,
+                    AverageCreepScore = stats.AverageCreepScore,
+                    AverageVisionScore = stats.AverageVisionScore,
+                    AverageDamageDealt = stats.AverageDamageDealt,
+                    CurrentWinStreak = stats.CurrentWinStreak,
+                    CurrentLoseStreak = stats.CurrentLoseStreak,
+                    LongestWinStreak = stats.LongestWinStreak,
+                    LongestLoseStreak = stats.LongestLoseStreak,
+                    NetLpChange = stats.NetLpChange,
+                    LastUpdated = stats.LastUpdated
                 }
-            })
-            .ToListAsync();
+            });
+        }
         
-        return Ok(players);
+        return Ok(playerDtos);
     }
     
     [HttpGet("{id}")]
-    public async Task<ActionResult<PlayerDto>> GetPlayer(int id)
+    public async Task<ActionResult<PlayerDto>> GetPlayer(string id)
     {
         var player = await _context.Players
-            .Include(p => p.CurrentStats)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .Find(p => p.Id == id)
+            .FirstOrDefaultAsync();
         
         if (player == null)
         {
             return NotFound();
         }
-        
+
+        var stats = await _context.PlayerStats
+            .Find(ps => ps.PlayerId == player.Id)
+            .FirstOrDefaultAsync();
+
         var playerDto = new PlayerDto
         {
             Id = player.Id,
@@ -98,463 +110,251 @@ public class PlayersController : ControllerBase
             Region = player.Region,
             JoinedAt = player.JoinedAt,
             IsActive = player.IsActive,
-            CurrentStats = player.CurrentStats == null ? null : new PlayerStatsDto
+            CurrentStats = stats == null ? null : new PlayerStatsDto
             {
-                CurrentTier = player.CurrentStats.CurrentTier,
-                CurrentRank = player.CurrentStats.CurrentRank,
-                CurrentLeaguePoints = player.CurrentStats.CurrentLeaguePoints,
-                TotalGames = player.CurrentStats.TotalGames,
-                TotalWins = player.CurrentStats.TotalWins,
-                TotalLosses = player.CurrentStats.TotalLosses,
-                WinRate = player.CurrentStats.WinRate,
-                AverageKills = player.CurrentStats.AverageKills,
-                AverageDeaths = player.CurrentStats.AverageDeaths,
-                AverageAssists = player.CurrentStats.AverageAssists,
-                KDA = player.CurrentStats.KDA,
-                AverageCreepScore = player.CurrentStats.AverageCreepScore,
-                AverageVisionScore = player.CurrentStats.AverageVisionScore,
-                AverageDamageDealt = player.CurrentStats.AverageDamageDealt,
-                CurrentWinStreak = player.CurrentStats.CurrentWinStreak,
-                CurrentLoseStreak = player.CurrentStats.CurrentLoseStreak,
-                LongestWinStreak = player.CurrentStats.LongestWinStreak,
-                LongestLoseStreak = player.CurrentStats.LongestLoseStreak,
-                NetLpChange = player.CurrentStats.NetLpChange,
-                LastUpdated = player.CurrentStats.LastUpdated
+                CurrentTier = stats.CurrentTier,
+                CurrentRank = stats.CurrentRank,
+                CurrentLeaguePoints = stats.CurrentLeaguePoints,
+                TotalGames = stats.TotalGames,
+                TotalWins = stats.TotalWins,
+                TotalLosses = stats.TotalLosses,
+                WinRate = stats.WinRate,
+                AverageKills = stats.AverageKills,
+                AverageDeaths = stats.AverageDeaths,
+                AverageAssists = stats.AverageAssists,
+                KDA = stats.KDA,
+                AverageCreepScore = stats.AverageCreepScore,
+                AverageVisionScore = stats.AverageVisionScore,
+                AverageDamageDealt = stats.AverageDamageDealt,
+                CurrentWinStreak = stats.CurrentWinStreak,
+                CurrentLoseStreak = stats.CurrentLoseStreak,
+                LongestWinStreak = stats.LongestWinStreak,
+                LongestLoseStreak = stats.LongestLoseStreak,
+                NetLpChange = stats.NetLpChange,
+                LastUpdated = stats.LastUpdated
             }
         };
         
         return Ok(playerDto);
     }
-    
+
     [HttpPost]
-    public async Task<ActionResult<PlayerDto>> CreatePlayer(CreatePlayerDto createPlayerDto)
+    public async Task<ActionResult<Player>> CreatePlayer([FromBody] CreatePlayerDto createPlayerDto)
     {
-        // Vérifier si le joueur existe déjà
-        var existingPlayer = await _context.Players
-            .FirstOrDefaultAsync(p => p.GameName == createPlayerDto.GameName && p.TagLine == createPlayerDto.TagLine);
-        
-        if (existingPlayer != null)
-        {
-            if (!existingPlayer.IsActive)
-            {
-                existingPlayer.IsActive = true;
-                await _context.SaveChangesAsync();
-                return Ok(new PlayerDto
-                {
-                    Id = existingPlayer.Id,
-                    RiotId = existingPlayer.RiotId,
-                    GameName = existingPlayer.GameName,
-                    TagLine = existingPlayer.TagLine,
-                    Region = existingPlayer.Region,
-                    JoinedAt = existingPlayer.JoinedAt,
-                    IsActive = existingPlayer.IsActive
-                });
-            }
-            
-            return BadRequest("Ce joueur est déjà inscrit au challenge.");
-        }
-        
-        // Récupérer les informations du joueur via l'API Riot
-        _logger.LogInformation("Attempting to get account for {GameName}#{TagLine}", createPlayerDto.GameName, createPlayerDto.TagLine);
-        
-        var account = await _riotApiService.GetAccountByRiotIdAsync(createPlayerDto.GameName, createPlayerDto.TagLine);
-        if (account == null)
-        {
-            _logger.LogWarning("Account not found for {GameName}#{TagLine}", createPlayerDto.GameName, createPlayerDto.TagLine);
-            return BadRequest("Joueur introuvable. Vérifiez le nom d'invocateur et le tag.");
-        }
-        
-        _logger.LogInformation("Account found for {GameName}#{TagLine}, PUUID: {Puuid}", account.GameName, account.TagLine, account.Puuid);
-        
-        var summoner = await _riotApiService.GetSummonerByPuuidAsync(account.Puuid);
-        if (summoner == null)
-        {
-            _logger.LogError("Failed to get summoner info for PUUID: {Puuid}. Summoner: {@Summoner}", account.Puuid, summoner);
-            return BadRequest("Impossible de récupérer les informations du summoner.");
-        }
-        
-        _logger.LogInformation("Summoner found with level: {Level}", summoner.SummonerLevel);
-        
-        // Créer le joueur - utiliser le PUUID comme SummonerId car l'API ne retourne plus d'ID séparé
-        var player = new Player
-        {
-            RiotId = $"{account.GameName}#{account.TagLine}",
-            GameName = account.GameName,
-            TagLine = account.TagLine,
-            Puuid = account.Puuid,
-            SummonerId = account.Puuid, // Utiliser le PUUID comme SummonerId
-            Region = createPlayerDto.Region,
-            JoinedAt = DateTime.UtcNow,
-            IsActive = true
-        };
-        
-        _context.Players.Add(player);
-        await _context.SaveChangesAsync();
-        
-        // Récupérer les informations de rang
-        var leagueEntries = await _riotApiService.GetLeagueEntriesByPuuidAsync(account.Puuid);
-        var soloQEntry = leagueEntries.FirstOrDefault(e => e.QueueType == "RANKED_SOLO_5x5");
-        
-        // Initialiser les stats avec les informations de rang
-        var playerStats = new PlayerStats
-        {
-            PlayerId = player.Id,
-            CurrentTier = soloQEntry?.Tier,
-            CurrentRank = soloQEntry?.Rank,
-            CurrentLeaguePoints = soloQEntry?.LeaguePoints ?? 0,
-            TotalGames = (soloQEntry?.Wins ?? 0) + (soloQEntry?.Losses ?? 0),
-            TotalWins = soloQEntry?.Wins ?? 0,
-            TotalLosses = soloQEntry?.Losses ?? 0,
-            TotalKills = 0,
-            TotalDeaths = 0,
-            TotalAssists = 0,
-            LastUpdated = DateTime.UtcNow
-        };
-        
-        _context.PlayerStats.Add(playerStats);
-        await _context.SaveChangesAsync();
-        
-        _logger.LogInformation("Player stats initialized with rank: {Tier} {Rank} ({LP} LP)", 
-            playerStats.CurrentTier, playerStats.CurrentRank, playerStats.CurrentLeaguePoints);
-        
-        // Récupérer les matches récents et mettre à jour les statistiques
-        _logger.LogInformation("Fetching recent matches for player {GameName}#{TagLine}...", player.GameName, player.TagLine);
-        
         try
         {
-            var matchesUpdated = await _matchUpdateService.UpdatePlayerMatchesAsync(player, 20);
-            if (matchesUpdated)
+            // Vérifier si le joueur existe déjà
+            var existingPlayer = await _context.Players
+                .Find(p => p.GameName.ToLower() == createPlayerDto.GameName.ToLower() && 
+                          p.TagLine.ToLower() == createPlayerDto.TagLine.ToLower())
+                .FirstOrDefaultAsync();
+
+            if (existingPlayer != null)
             {
-                _logger.LogInformation("Successfully updated matches and stats for player {GameName}#{TagLine}", player.GameName, player.TagLine);
-                
-                // Recharger le joueur avec les stats mises à jour pour la notification
-                await _context.Entry(player).ReloadAsync();
-                await _context.Entry(player).Reference(p => p.CurrentStats).LoadAsync();
+                return Conflict("Un joueur avec ce GameName et TagLine existe déjà");
             }
-            else
+
+            // Récupérer les informations du joueur depuis Riot API
+            var riotPlayer = await _riotApiService.GetAccountByRiotIdAsync(createPlayerDto.GameName, createPlayerDto.TagLine);
+            if (riotPlayer == null)
             {
-                _logger.LogWarning("No matches could be updated for player {GameName}#{TagLine}", player.GameName, player.TagLine);
+                return BadRequest("Joueur introuvable sur Riot Games");
             }
+
+            var summonerInfo = await _riotApiService.GetSummonerByPuuidAsync(riotPlayer.Puuid);
+            if (summonerInfo == null)
+            {
+                return BadRequest("Informations du summoner introuvables");
+            }
+
+            var leagueEntries = await _riotApiService.GetLeagueEntriesByPuuidAsync(riotPlayer.Puuid);
+            var soloQueueEntry = leagueEntries.FirstOrDefault(entry => entry.QueueType == "RANKED_SOLO_5x5");
+
+            // Créer le joueur
+            var player = new Player
+            {
+                RiotId = $"{riotPlayer.GameName}#{riotPlayer.TagLine}",
+                GameName = riotPlayer.GameName,
+                TagLine = riotPlayer.TagLine,
+                Puuid = riotPlayer.Puuid,
+                SummonerId = summonerInfo.Id,
+                Region = "EUW1",
+                IsActive = true,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            await _context.Players.InsertOneAsync(player);
+
+            // Créer les stats initiales
+            var playerStats = new PlayerStats
+            {
+                PlayerId = player.Id,
+                CurrentTier = soloQueueEntry?.Tier,
+                CurrentRank = soloQueueEntry?.Rank,
+                CurrentLeaguePoints = soloQueueEntry?.LeaguePoints ?? 0,
+                TotalGames = soloQueueEntry?.Wins + soloQueueEntry?.Losses ?? 0,
+                TotalWins = soloQueueEntry?.Wins ?? 0,
+                TotalLosses = soloQueueEntry?.Losses ?? 0,
+                LastUpdated = DateTime.UtcNow
+            };
+
+            await _context.PlayerStats.InsertOneAsync(playerStats);
+
+            _logger.LogInformation("Player created: {GameName}#{TagLine}", player.GameName, player.TagLine);
+
+            return CreatedAtAction(nameof(GetPlayer), new { id = player.Id }, player);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating matches for newly added player {GameName}#{TagLine}", player.GameName, player.TagLine);
-            // Continue même si la mise à jour des matches échoue
+            _logger.LogError(ex, "Error creating player {GameName}#{TagLine}", createPlayerDto.GameName, createPlayerDto.TagLine);
+            return StatusCode(500, "Erreur lors de la création du joueur");
         }
-        
-        // Notifier les clients connectés
-        await _hubContext.Clients.Group("Leaderboard").SendAsync("PlayerAdded", new PlayerDto
-        {
-            Id = player.Id,
-            RiotId = player.RiotId,
-            GameName = player.GameName,
-            TagLine = player.TagLine,
-            Region = player.Region,
-            JoinedAt = player.JoinedAt,
-            IsActive = player.IsActive
-        });
-        
-        _logger.LogInformation("Player {GameName}#{TagLine} added to challenge", player.GameName, player.TagLine);
-        
-        return CreatedAtAction(nameof(GetPlayer), new { id = player.Id }, new PlayerDto
-        {
-            Id = player.Id,
-            RiotId = player.RiotId,
-            GameName = player.GameName,
-            TagLine = player.TagLine,
-            Region = player.Region,
-            JoinedAt = player.JoinedAt,
-            IsActive = player.IsActive
-        });
     }
-    
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdatePlayer(string id, [FromBody] UpdatePlayerDto updatePlayerDto)
+    {
+        try
+        {
+            var player = await _context.Players
+                .Find(p => p.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (player == null)
+            {
+                return NotFound();
+            }
+
+            player.IsActive = updatePlayerDto.IsActive;
+
+            await _context.Players.ReplaceOneAsync(p => p.Id == id, player);
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating player {PlayerId}", id);
+            return StatusCode(500, "Erreur lors de la mise à jour du joueur");
+        }
+    }
+
     [HttpDelete("{id}")]
-    public async Task<IActionResult> RemovePlayer(int id)
+    public async Task<IActionResult> DeletePlayer(string id)
     {
-        var player = await _context.Players.FindAsync(id);
-        if (player == null)
-        {
-            return NotFound();
-        }
-        
-        player.IsActive = false;
-        await _context.SaveChangesAsync();
-        
-        // Notifier les clients connectés
-        await _hubContext.Clients.Group("Leaderboard").SendAsync("PlayerRemoved", id);
-        
-        _logger.LogInformation("Player {GameName}#{TagLine} removed from challenge", player.GameName, player.TagLine);
-        
-        return NoContent();
-    }
-    
-    [HttpPost("{id}/refresh-rank")]
-    public async Task<IActionResult> RefreshPlayerRank(int id)
-    {
-        var player = await _context.Players
-            .Include(p => p.CurrentStats)
-            .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
-            
-        if (player == null)
-        {
-            return NotFound();
-        }
-        
         try
         {
-            // 1. Récupérer les informations de rang actuelles
+            var player = await _context.Players
+                .Find(p => p.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (player == null)
+            {
+                return NotFound();
+            }
+
+            await _context.Players.DeleteOneAsync(p => p.Id == id);
+            await _context.PlayerStats.DeleteManyAsync(ps => ps.PlayerId == id);
+            await _context.ChampionStats.DeleteManyAsync(cs => cs.PlayerId == id);
+            await _context.RoleStats.DeleteManyAsync(rs => rs.PlayerId == id);
+            await _context.Matches.DeleteManyAsync(m => m.PlayerId == id);
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting player {PlayerId}", id);
+            return StatusCode(500, "Erreur lors de la suppression du joueur");
+        }
+    }
+
+    [HttpPost("{id}/refresh")]
+    public async Task<IActionResult> RefreshPlayer(string id)
+    {
+        try
+        {
+            var player = await _context.Players
+                .Find(p => p.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (player == null)
+            {
+                return NotFound();
+            }
+
+            // Mettre à jour les informations de base du joueur
+            var summonerInfo = await _riotApiService.GetSummonerByPuuidAsync(player.Puuid);
+            if (summonerInfo == null)
+            {
+                return BadRequest("Informations du summoner introuvables");
+            }
+
             var leagueEntries = await _riotApiService.GetLeagueEntriesByPuuidAsync(player.Puuid);
-            var soloQEntry = leagueEntries.FirstOrDefault(e => e.QueueType == "RANKED_SOLO_5x5");
+            var soloQueueEntry = leagueEntries.FirstOrDefault(entry => entry.QueueType == "RANKED_SOLO_5x5");
             
-            if (player.CurrentStats != null)
+            // Mettre à jour les stats de base depuis l'API League
+            var stats = await _context.PlayerStats
+                .Find(ps => ps.PlayerId == player.Id)
+                .FirstOrDefaultAsync();
+
+            if (stats != null)
             {
-                // Mettre à jour les informations de rang
-                player.CurrentStats.CurrentTier = soloQEntry?.Tier;
-                player.CurrentStats.CurrentRank = soloQEntry?.Rank;
-                player.CurrentStats.CurrentLeaguePoints = soloQEntry?.LeaguePoints ?? 0;
-                player.CurrentStats.LastUpdated = DateTime.UtcNow;
-                
-                await _context.SaveChangesAsync();
-                
-                // 2. Mettre à jour les matches et statistiques détaillées (KDA, etc.) pour toute la saison
-                await _matchUpdateService.UpdatePlayerMatchesAsync(player, 500);
-                
-                _logger.LogInformation("Refreshed rank for player {GameName}#{TagLine}: {Tier} {Rank} ({LP} LP)", 
-                    player.GameName, player.TagLine, player.CurrentStats.CurrentTier, 
-                    player.CurrentStats.CurrentRank, player.CurrentStats.CurrentLeaguePoints);
-                
-                // Notifier les clients connectés
-                await _hubContext.Clients.Group("Leaderboard").SendAsync("StatsUpdated", new PlayerDto
-                {
-                    Id = player.Id,
-                    RiotId = player.RiotId,
-                    GameName = player.GameName,
-                    TagLine = player.TagLine,
-                    Region = player.Region,
-                    JoinedAt = player.JoinedAt,
-                    IsActive = player.IsActive,
-                    CurrentStats = new PlayerStatsDto
-                    {
-                        CurrentTier = player.CurrentStats.CurrentTier,
-                        CurrentRank = player.CurrentStats.CurrentRank,
-                        CurrentLeaguePoints = player.CurrentStats.CurrentLeaguePoints,
-                        TotalGames = player.CurrentStats.TotalGames,
-                        TotalWins = player.CurrentStats.TotalWins,
-                        TotalLosses = player.CurrentStats.TotalLosses,
-                        WinRate = player.CurrentStats.WinRate,
-                        AverageKills = player.CurrentStats.AverageKills,
-                        AverageDeaths = player.CurrentStats.AverageDeaths,
-                        AverageAssists = player.CurrentStats.AverageAssists,
-                        KDA = player.CurrentStats.KDA,
-                        AverageCreepScore = player.CurrentStats.AverageCreepScore,
-                        AverageVisionScore = player.CurrentStats.AverageVisionScore,
-                        AverageDamageDealt = player.CurrentStats.AverageDamageDealt,
-                        CurrentWinStreak = player.CurrentStats.CurrentWinStreak,
-                        CurrentLoseStreak = player.CurrentStats.CurrentLoseStreak,
-                        LongestWinStreak = player.CurrentStats.LongestWinStreak,
-                        LongestLoseStreak = player.CurrentStats.LongestLoseStreak,
-                        NetLpChange = player.CurrentStats.NetLpChange,
-                        LastUpdated = player.CurrentStats.LastUpdated
-                    }
-                });
-                
-                return Ok();
+                stats.CurrentTier = soloQueueEntry?.Tier;
+                stats.CurrentRank = soloQueueEntry?.Rank;
+                stats.CurrentLeaguePoints = soloQueueEntry?.LeaguePoints ?? 0;
+                stats.TotalGames = soloQueueEntry?.Wins + soloQueueEntry?.Losses ?? 0;
+                stats.TotalWins = soloQueueEntry?.Wins ?? 0;
+                stats.TotalLosses = soloQueueEntry?.Losses ?? 0;
+                stats.LastUpdated = DateTime.UtcNow;
+
+                await _context.PlayerStats.ReplaceOneAsync(ps => ps.PlayerId == player.Id, stats);
             }
-            
-            return BadRequest("Player has no stats to refresh");
+
+            // Mettre à jour les matches et stats détaillées
+            await _matchUpdateService.UpdatePlayerMatchesAsync(player);
+
+            await _hubContext.Clients.All.SendAsync("PlayerUpdated", player.Id);
+
+            return Ok("Joueur mis à jour avec succès");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error refreshing rank for player {PlayerId}", id);
-            return StatusCode(500, "Error refreshing player rank");
+            _logger.LogError(ex, "Error refreshing player {PlayerId}", id);
+            return StatusCode(500, "Erreur lors de la mise à jour du joueur");
         }
     }
-    
-    [HttpPost("{id}/update-matches")]
-    public async Task<IActionResult> UpdatePlayerMatches(int id, [FromQuery] int maxMatches = 20)
-    {
-        var player = await _context.Players
-            .Include(p => p.CurrentStats)
-            .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
-            
-        if (player == null)
-        {
-            return NotFound();
-        }
-        
-        try
-        {
-            _logger.LogInformation("Manually updating matches for player {GameName}#{TagLine}", player.GameName, player.TagLine);
-            
-            var updated = await _matchUpdateService.UpdatePlayerMatchesAsync(player, maxMatches);
-            
-            if (updated)
-            {
-                // Recharger les stats mises à jour
-                await _context.Entry(player).Reference(p => p.CurrentStats).LoadAsync();
-                
-                // Notifier les clients connectés
-                await _hubContext.Clients.Group("Leaderboard").SendAsync("StatsUpdated", new PlayerDto
-                {
-                    Id = player.Id,
-                    RiotId = player.RiotId,
-                    GameName = player.GameName,
-                    TagLine = player.TagLine,
-                    Region = player.Region,
-                    JoinedAt = player.JoinedAt,
-                    IsActive = player.IsActive,
-                    CurrentStats = player.CurrentStats == null ? null : new PlayerStatsDto
-                    {
-                        CurrentTier = player.CurrentStats.CurrentTier,
-                        CurrentRank = player.CurrentStats.CurrentRank,
-                        CurrentLeaguePoints = player.CurrentStats.CurrentLeaguePoints,
-                        TotalGames = player.CurrentStats.TotalGames,
-                        TotalWins = player.CurrentStats.TotalWins,
-                        TotalLosses = player.CurrentStats.TotalLosses,
-                        WinRate = player.CurrentStats.WinRate,
-                        AverageKills = player.CurrentStats.AverageKills,
-                        AverageDeaths = player.CurrentStats.AverageDeaths,
-                        AverageAssists = player.CurrentStats.AverageAssists,
-                        KDA = player.CurrentStats.KDA,
-                        AverageCreepScore = player.CurrentStats.AverageCreepScore,
-                        AverageVisionScore = player.CurrentStats.AverageVisionScore,
-                        AverageDamageDealt = player.CurrentStats.AverageDamageDealt,
-                        CurrentWinStreak = player.CurrentStats.CurrentWinStreak,
-                        CurrentLoseStreak = player.CurrentStats.CurrentLoseStreak,
-                        LongestWinStreak = player.CurrentStats.LongestWinStreak,
-                        LongestLoseStreak = player.CurrentStats.LongestLoseStreak,
-                        NetLpChange = player.CurrentStats.NetLpChange,
-                        LastUpdated = player.CurrentStats.LastUpdated
-                    }
-                });
-                
-                _logger.LogInformation("Successfully updated matches for player {GameName}#{TagLine}", player.GameName, player.TagLine);
-                return Ok(new { message = "Matches updated successfully", updated = true });
-            }
-            else
-            {
-                _logger.LogWarning("No new matches found for player {GameName}#{TagLine}", player.GameName, player.TagLine);
-                return Ok(new { message = "No new matches found", updated = false });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating matches for player {PlayerId}", id);
-            return StatusCode(500, "Error updating player matches");
-        }
-    }
-    
-    [HttpPost("refresh-all-ranks")]
-    public async Task<IActionResult> RefreshAllPlayersRanks()
+
+    [HttpPost("refresh-all")]
+    public async Task<IActionResult> RefreshAllPlayers()
     {
         try
         {
-            var activePlayers = await _context.Players
-                .Include(p => p.CurrentStats)
-                .Where(p => p.IsActive)
+            var players = await _context.Players
+                .Find(p => p.IsActive)
                 .ToListAsync();
-                
-            if (!activePlayers.Any())
-            {
-                return Ok(new { message = "No active players found" });
-            }
-            
-            _logger.LogInformation("Starting refresh for {Count} active players", activePlayers.Count);
-            
-            // Traitement séquentiel avec un délai pour respecter les rate limits
-            var successCount = 0;
-            var errorCount = 0;
-            
-            foreach (var player in activePlayers)
+
+            var refreshedCount = 0;
+            foreach (var player in players)
             {
                 try
                 {
-                    _logger.LogInformation("Processing player {GameName}#{TagLine} ({Current}/{Total})", 
-                        player.GameName, player.TagLine, successCount + errorCount + 1, activePlayers.Count);
-                    
-                    // 1. Récupérer les informations de rang actuelles
-                    var leagueEntries = await _riotApiService.GetLeagueEntriesByPuuidAsync(player.Puuid);
-                    var soloQEntry = leagueEntries.FirstOrDefault(e => e.QueueType == "RANKED_SOLO_5x5");
-                    
-                    if (player.CurrentStats != null)
-                    {
-                        // Mettre à jour les informations de rang ET les vraies statistiques W/L
-                        player.CurrentStats.CurrentTier = soloQEntry?.Tier;
-                        player.CurrentStats.CurrentRank = soloQEntry?.Rank;
-                        player.CurrentStats.CurrentLeaguePoints = soloQEntry?.LeaguePoints ?? 0;
-                        player.CurrentStats.TotalWins = soloQEntry?.Wins ?? 0;
-                        player.CurrentStats.TotalLosses = soloQEntry?.Losses ?? 0;
-                        player.CurrentStats.TotalGames = (soloQEntry?.Wins ?? 0) + (soloQEntry?.Losses ?? 0);
-                        player.CurrentStats.LastUpdated = DateTime.UtcNow;
-                        
-                        // 2. Mettre à jour les matches et statistiques détaillées (KDA, etc.) pour toute la saison
-                        await _matchUpdateService.UpdatePlayerMatchesAsync(player, 500);
-                        
-                        // 3. Vérification supplémentaire : si TotalGames = 0 mais stats non-nulles, forcer le nettoyage
-                        if (player.CurrentStats.TotalGames == 0)
-                        {
-                            var hasStaleStats = player.CurrentStats.TotalKills > 0 || player.CurrentStats.TotalDeaths > 0 || 
-                                               player.CurrentStats.TotalAssists > 0 || player.CurrentStats.CurrentWinStreak > 0 ||
-                                               player.CurrentStats.CurrentLoseStreak > 0;
-                            
-                            if (hasStaleStats)
-                            {
-                                _logger.LogWarning("Force cleaning stale stats for player {GameName}#{TagLine} with 0 total games", 
-                                    player.GameName, player.TagLine);
-                                
-                                player.CurrentStats.TotalKills = 0;
-                                player.CurrentStats.TotalDeaths = 0;
-                                player.CurrentStats.TotalAssists = 0;
-                                player.CurrentStats.AverageCreepScore = 0;
-                                player.CurrentStats.AverageVisionScore = 0;
-                                player.CurrentStats.AverageDamageDealt = 0;
-                                player.CurrentStats.CurrentWinStreak = 0;
-                                player.CurrentStats.CurrentLoseStreak = 0;
-                                player.CurrentStats.LongestWinStreak = 0;
-                                player.CurrentStats.LongestLoseStreak = 0;
-                                player.CurrentStats.TotalLpGained = 0;
-                                player.CurrentStats.TotalLpLost = 0;
-                            }
-                        }
-                        
-                        _logger.LogInformation("Successfully refreshed player {GameName}#{TagLine}: {Tier} {Rank} ({LP} LP)", 
-                            player.GameName, player.TagLine, player.CurrentStats.CurrentTier, 
-                            player.CurrentStats.CurrentRank, player.CurrentStats.CurrentLeaguePoints);
-                        
-                        successCount++;
-                    }
-                    
-                    // Petit délai entre chaque joueur pour éviter les rate limits
-                    await Task.Delay(500);
+                    await _matchUpdateService.UpdatePlayerMatchesAsync(player);
+                    refreshedCount++;
+                    _logger.LogInformation("Refreshed player {GameName}#{TagLine}", player.GameName, player.TagLine);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error refreshing rank for player {GameName}#{TagLine}", 
-                        player.GameName, player.TagLine);
-                    errorCount++;
+                    _logger.LogError(ex, "Error refreshing player {GameName}#{TagLine}", player.GameName, player.TagLine);
                 }
             }
-            
-            // Sauvegarder tous les changements
-            await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("Refresh completed: {Success} successful, {Errors} errors out of {Total} players", 
-                successCount, errorCount, activePlayers.Count);
-            
-            // Notifier tous les clients connectés que les données ont été mises à jour
-            await _hubContext.Clients.Group("Leaderboard").SendAsync("AllPlayersUpdated");
-            
-            return Ok(new { 
-                message = $"Refresh completed: {successCount} successful, {errorCount} errors",
-                playersUpdated = successCount,
-                totalPlayers = activePlayers.Count,
-                errors = errorCount
-            });
+
+            await _hubContext.Clients.All.SendAsync("AllPlayersUpdated");
+
+            return Ok($"Mis à jour {refreshedCount}/{players.Count} joueurs");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error refreshing all player ranks");
-            return BadRequest("Error refreshing all player ranks");
+            _logger.LogError(ex, "Error refreshing all players");
+            return StatusCode(500, "Erreur lors de la mise à jour des joueurs");
         }
     }
 }

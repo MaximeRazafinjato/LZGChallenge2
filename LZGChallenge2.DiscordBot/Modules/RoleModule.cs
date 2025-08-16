@@ -1,5 +1,5 @@
 using Discord.Commands;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Microsoft.Extensions.DependencyInjection;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Models;
@@ -21,7 +21,7 @@ public class RoleModule : ModuleBase<SocketCommandContext>
     public async Task RolesAsync([Remainder] string? playerName = null)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         Player? player = null;
 
@@ -37,14 +37,16 @@ public class RoleModule : ModuleBase<SocketCommandContext>
             if (parts.Length == 2)
             {
                 player = await dbContext.Players
-                    .FirstOrDefaultAsync(p => p.GameName.ToLower() == parts[0].ToLower() && 
-                                            p.TagLine.ToLower() == parts[1].ToLower());
+                    .Find(p => p.GameName.ToLower() == parts[0].ToLower() && 
+                              p.TagLine.ToLower() == parts[1].ToLower())
+                    .FirstOrDefaultAsync();
             }
         }
         else
         {
             player = await dbContext.Players
-                .FirstOrDefaultAsync(p => p.GameName.ToLower() == playerName.ToLower());
+                .Find(p => p.GameName.ToLower() == playerName.ToLower())
+                .FirstOrDefaultAsync();
         }
 
         if (player == null)
@@ -54,7 +56,7 @@ public class RoleModule : ModuleBase<SocketCommandContext>
         }
 
         var allRoleStats = await dbContext.RoleStats
-            .Where(rs => rs.PlayerId == player.Id)
+            .Find(rs => rs.PlayerId == player.Id)
             .ToListAsync();
 
         var roleStats = allRoleStats
@@ -109,7 +111,7 @@ public class RoleModule : ModuleBase<SocketCommandContext>
     public async Task MainRoleAsync([Remainder] string? playerName = null)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         Player? player = null;
 
@@ -125,14 +127,16 @@ public class RoleModule : ModuleBase<SocketCommandContext>
             if (parts.Length == 2)
             {
                 player = await dbContext.Players
-                    .FirstOrDefaultAsync(p => p.GameName.ToLower() == parts[0].ToLower() && 
-                                            p.TagLine.ToLower() == parts[1].ToLower());
+                    .Find(p => p.GameName.ToLower() == parts[0].ToLower() && 
+                              p.TagLine.ToLower() == parts[1].ToLower())
+                    .FirstOrDefaultAsync();
             }
         }
         else
         {
             player = await dbContext.Players
-                .FirstOrDefaultAsync(p => p.GameName.ToLower() == playerName.ToLower());
+                .Find(p => p.GameName.ToLower() == playerName.ToLower())
+                .FirstOrDefaultAsync();
         }
 
         if (player == null)
@@ -142,7 +146,7 @@ public class RoleModule : ModuleBase<SocketCommandContext>
         }
 
         var allRoleStats = await dbContext.RoleStats
-            .Where(rs => rs.PlayerId == player.Id)
+            .Find(rs => rs.PlayerId == player.Id)
             .ToListAsync();
 
         var mainRole = allRoleStats
@@ -195,7 +199,7 @@ public class RoleModule : ModuleBase<SocketCommandContext>
     public async Task RoleLeaderboardAsync(string? position = null)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         if (string.IsNullOrEmpty(position))
         {
@@ -215,11 +219,23 @@ public class RoleModule : ModuleBase<SocketCommandContext>
         };
 
         var allRoleStats = await dbContext.RoleStats
-            .Include(rs => rs.Player)
-            .Where(rs => rs.Position.ToUpper() == normalizedPosition && rs.GamesPlayed >= 3)
+            .Find(rs => rs.Position.ToUpper() == normalizedPosition && rs.GamesPlayed >= 3)
             .ToListAsync();
+            
+        var roleStatsWithPlayers = new List<RoleStats>();
+        foreach (var roleStats in allRoleStats)
+        {
+            var player = await dbContext.Players
+                .Find(p => p.Id == roleStats.PlayerId)
+                .FirstOrDefaultAsync();
+            if (player != null)
+            {
+                roleStats.Player = player;
+                roleStatsWithPlayers.Add(roleStats);
+            }
+        }
 
-        var roleLeaderboard = allRoleStats
+        var roleLeaderboard = roleStatsWithPlayers
             .OrderByDescending(rs => rs.WinRate)
             .ThenByDescending(rs => rs.GamesPlayed)
             .Take(10)

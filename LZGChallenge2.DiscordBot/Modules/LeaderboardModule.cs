@@ -1,5 +1,5 @@
 using Discord.Commands;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Microsoft.Extensions.DependencyInjection;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Models;
@@ -21,14 +21,26 @@ public class LeaderboardModule : ModuleBase<SocketCommandContext>
     public async Task LeaderboardAsync()
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         var allPlayers = await dbContext.Players
-            .Include(p => p.CurrentStats)
-            .Where(p => p.IsActive && p.CurrentStats != null)
+            .Find(p => p.IsActive)
             .ToListAsync();
+            
+        var playersWithStats = new List<Player>();
+        foreach (var player in allPlayers)
+        {
+            var stats = await dbContext.PlayerStats
+                .Find(ps => ps.PlayerId == player.Id)
+                .FirstOrDefaultAsync();
+            if (stats != null)
+            {
+                player.CurrentStats = stats;
+                playersWithStats.Add(player);
+            }
+        }
 
-        var players = allPlayers
+        var players = playersWithStats
             .OrderByDescending(p => CalculateRankScore(p.CurrentStats!.CurrentTier, p.CurrentStats.CurrentRank, p.CurrentStats.CurrentLeaguePoints))
             .Take(10)
             .ToList();
@@ -116,7 +128,7 @@ public class LeaderboardModule : ModuleBase<SocketCommandContext>
     public async Task StatsAsync([Remainder] string? playerName = null)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         Player? player = null;
 
@@ -132,16 +144,30 @@ public class LeaderboardModule : ModuleBase<SocketCommandContext>
             if (parts.Length == 2)
             {
                 player = await dbContext.Players
-                    .Include(p => p.CurrentStats)
-                    .FirstOrDefaultAsync(p => p.GameName.ToLower() == parts[0].ToLower() && 
-                                            p.TagLine.ToLower() == parts[1].ToLower());
+                    .Find(p => p.GameName.ToLower() == parts[0].ToLower() && 
+                              p.TagLine.ToLower() == parts[1].ToLower())
+                    .FirstOrDefaultAsync();
+                if (player != null)
+                {
+                    var stats = await dbContext.PlayerStats
+                        .Find(ps => ps.PlayerId == player.Id)
+                        .FirstOrDefaultAsync();
+                    player.CurrentStats = stats;
+                }
             }
         }
         else
         {
             player = await dbContext.Players
-                .Include(p => p.CurrentStats)
-                .FirstOrDefaultAsync(p => p.GameName.ToLower() == playerName.ToLower());
+                .Find(p => p.GameName.ToLower() == playerName.ToLower())
+                .FirstOrDefaultAsync();
+            if (player != null)
+            {
+                var stats = await dbContext.PlayerStats
+                    .Find(ps => ps.PlayerId == player.Id)
+                    .FirstOrDefaultAsync();
+                player.CurrentStats = stats;
+            }
         }
 
         if (player == null)
@@ -163,7 +189,7 @@ public class LeaderboardModule : ModuleBase<SocketCommandContext>
         {
             sb.AppendLine($"**Parties:** {player.CurrentStats.TotalGames} ({player.CurrentStats.TotalWins}W/{player.CurrentStats.TotalLosses}L)");
             sb.AppendLine($"**Winrate:** {player.CurrentStats.WinRate:F1}%");
-            sb.AppendLine($"**KDA:** {player.CurrentStats.KDA:F2} ({player.CurrentStats.TotalKills}/{player.CurrentStats.TotalDeaths}/{player.CurrentStats.TotalAssists})");
+            sb.AppendLine($"**KDA:** {player.CurrentStats.KDA:F2} ({player.CurrentStats.AverageKills:F1}/{player.CurrentStats.AverageDeaths:F1}/{player.CurrentStats.AverageAssists:F1})");
             
             if (player.CurrentStats.CurrentWinStreak > 0)
                 sb.AppendLine($"**Série actuelle:** {player.CurrentStats.CurrentWinStreak} victoires 🔥");

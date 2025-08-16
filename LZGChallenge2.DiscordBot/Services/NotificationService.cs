@@ -1,6 +1,6 @@
 using Discord;
 using Discord.WebSocket;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -58,14 +58,26 @@ public class NotificationService : BackgroundService
     private async Task CheckForAchievements()
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         var players = await dbContext.Players
-            .Include(p => p.CurrentStats)
-            .Where(p => p.CurrentStats != null)
+            .Find(p => p.IsActive)
             .ToListAsync();
-
+            
+        var playersWithStats = new List<Player>();
         foreach (var player in players)
+        {
+            var stats = await dbContext.PlayerStats
+                .Find(ps => ps.PlayerId == player.Id)
+                .FirstOrDefaultAsync();
+            if (stats != null)
+            {
+                player.CurrentStats = stats;
+                playersWithStats.Add(player);
+            }
+        }
+
+        foreach (var player in playersWithStats)
         {
             if (player.CurrentStats == null) continue;
 
@@ -99,7 +111,7 @@ public class NotificationService : BackgroundService
     private async Task CheckRankUpAchievement(Player player)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         if (player.CurrentStats?.NetLpChange > 0)
         {
@@ -147,7 +159,7 @@ public class NotificationService : BackgroundService
         if (DateTime.Now.Hour != 20 || DateTime.Now.Minute != 0) return;
 
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         var channelId = _configuration.GetValue<ulong>("Discord:DailyRecapChannelId");
         if (channelId == 0) return;
@@ -155,11 +167,24 @@ public class NotificationService : BackgroundService
         var channel = _client?.GetChannel(channelId) as ITextChannel;
         if (channel == null) return;
 
-        var players = await dbContext.Players
-            .Include(p => p.CurrentStats)
-            .Where(p => p.CurrentStats != null)
-            .OrderByDescending(p => p.CurrentStats.NetLpChange)
+        var allPlayers = await dbContext.Players
+            .Find(p => p.IsActive)
             .ToListAsync();
+            
+        var players = new List<Player>();
+        foreach (var player in allPlayers)
+        {
+            var stats = await dbContext.PlayerStats
+                .Find(ps => ps.PlayerId == player.Id)
+                .FirstOrDefaultAsync();
+            if (stats != null)
+            {
+                player.CurrentStats = stats;
+                players.Add(player);
+            }
+        }
+        
+        players = players.OrderByDescending(p => p.CurrentStats!.NetLpChange).ToList();
 
         if (!players.Any()) return;
 

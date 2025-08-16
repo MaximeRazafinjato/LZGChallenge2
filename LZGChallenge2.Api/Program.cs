@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Options;
 using LZGChallenge2.Api.Services;
@@ -8,9 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Configure Entity Framework
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Configure MongoDB
+var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"]!;
+var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"]!;
+builder.Services.AddMongoDb(mongoConnectionString, mongoDatabaseName);
 
 // Configure options
 builder.Services.Configure<RiotApiOptions>(

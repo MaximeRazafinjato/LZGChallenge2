@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Services;
 
@@ -9,11 +9,11 @@ namespace LZGChallenge2.Api.Controllers;
 [Route("api/[controller]")]
 public class AdminController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly MongoDbContext _context;
     private readonly ISeasonService _seasonService;
     private readonly ILogger<AdminController> _logger;
 
-    public AdminController(AppDbContext context, ISeasonService seasonService, ILogger<AdminController> logger)
+    public AdminController(MongoDbContext context, ISeasonService seasonService, ILogger<AdminController> logger)
     {
         _context = context;
         _seasonService = seasonService;
@@ -28,7 +28,7 @@ public class AdminController : ControllerBase
             _logger.LogInformation("Starting update of match seasons...");
 
             var matchesWithWrongSeason = await _context.Matches
-                .Where(m => m.Season == 0)
+                .Find(m => m.Season == 0)
                 .ToListAsync();
 
             _logger.LogInformation("Found {Count} matches with Season = 0", matchesWithWrongSeason.Count);
@@ -40,19 +40,12 @@ public class AdminController : ControllerBase
                 if (match.Season != correctSeason)
                 {
                     match.Season = correctSeason;
+                    await _context.Matches.ReplaceOneAsync(m => m.Id == match.Id, match);
                     updatedCount++;
                 }
             }
 
-            if (updatedCount > 0)
-            {
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Updated {UpdatedCount} matches with correct seasons", updatedCount);
-            }
-            else
-            {
-                _logger.LogInformation("No matches needed season updates");
-            }
+            _logger.LogInformation("Updated {UpdatedCount} matches with correct seasons", updatedCount);
 
             return Ok(new { 
                 message = $"Successfully updated {updatedCount} matches", 
@@ -73,9 +66,9 @@ public class AdminController : ControllerBase
         try
         {
             var seasonStats = await _context.Matches
-                .GroupBy(m => m.Season)
-                .Select(g => new { Season = g.Key, Count = g.Count() })
-                .OrderBy(x => x.Season)
+                .Aggregate()
+                .Group(m => m.Season, g => new { Season = g.Key, Count = g.Count() })
+                .SortBy(x => x.Season)
                 .ToListAsync();
 
             return Ok(seasonStats);

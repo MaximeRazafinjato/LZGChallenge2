@@ -1,5 +1,5 @@
 using Discord.Commands;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Microsoft.Extensions.DependencyInjection;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Models;
@@ -21,7 +21,7 @@ public class ChampionsModule : ModuleBase<SocketCommandContext>
     public async Task ChampionsAsync([Remainder] string? playerName = null)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         Player? player = null;
 
@@ -37,14 +37,16 @@ public class ChampionsModule : ModuleBase<SocketCommandContext>
             if (parts.Length == 2)
             {
                 player = await dbContext.Players
-                    .FirstOrDefaultAsync(p => p.GameName.ToLower() == parts[0].ToLower() && 
-                                            p.TagLine.ToLower() == parts[1].ToLower());
+                    .Find(p => p.GameName.ToLower() == parts[0].ToLower() && 
+                              p.TagLine.ToLower() == parts[1].ToLower())
+                    .FirstOrDefaultAsync();
             }
         }
         else
         {
             player = await dbContext.Players
-                .FirstOrDefaultAsync(p => p.GameName.ToLower() == playerName.ToLower());
+                .Find(p => p.GameName.ToLower() == playerName.ToLower())
+                .FirstOrDefaultAsync();
         }
 
         if (player == null)
@@ -54,7 +56,7 @@ public class ChampionsModule : ModuleBase<SocketCommandContext>
         }
 
         var allChampionStats = await dbContext.ChampionStats
-            .Where(cs => cs.PlayerId == player.Id)
+            .Find(cs => cs.PlayerId == player.Id)
             .ToListAsync();
 
         var championStats = allChampionStats
@@ -92,7 +94,7 @@ public class ChampionsModule : ModuleBase<SocketCommandContext>
     public async Task ProgressAsync([Remainder] string? playerName = null)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
 
         Player? player = null;
 
@@ -108,16 +110,30 @@ public class ChampionsModule : ModuleBase<SocketCommandContext>
             if (parts.Length == 2)
             {
                 player = await dbContext.Players
-                    .Include(p => p.CurrentStats)
-                    .FirstOrDefaultAsync(p => p.GameName.ToLower() == parts[0].ToLower() && 
-                                            p.TagLine.ToLower() == parts[1].ToLower());
+                    .Find(p => p.GameName.ToLower() == parts[0].ToLower() && 
+                              p.TagLine.ToLower() == parts[1].ToLower())
+                    .FirstOrDefaultAsync();
+                if (player != null)
+                {
+                    var stats = await dbContext.PlayerStats
+                        .Find(ps => ps.PlayerId == player.Id)
+                        .FirstOrDefaultAsync();
+                    player.CurrentStats = stats;
+                }
             }
         }
         else
         {
             player = await dbContext.Players
-                .Include(p => p.CurrentStats)
-                .FirstOrDefaultAsync(p => p.GameName.ToLower() == playerName.ToLower());
+                .Find(p => p.GameName.ToLower() == playerName.ToLower())
+                .FirstOrDefaultAsync();
+            if (player != null)
+            {
+                var stats = await dbContext.PlayerStats
+                    .Find(ps => ps.PlayerId == player.Id)
+                    .FirstOrDefaultAsync();
+                player.CurrentStats = stats;
+            }
         }
 
         if (player == null)
@@ -139,8 +155,8 @@ public class ChampionsModule : ModuleBase<SocketCommandContext>
         if (player.CurrentStats != null)
         {
             sb.AppendLine($"Parties: {player.CurrentStats.TotalGames} ({player.CurrentStats.TotalWins}W/{player.CurrentStats.TotalLosses}L)");
-            sb.AppendLine($"LP total gagné: +{player.CurrentStats.TotalLpGained}");
-            sb.AppendLine($"LP total perdu: -{player.CurrentStats.TotalLpLost}");
+            sb.AppendLine($"LP total gagné: +{player.CurrentStats.NetLpChange}");
+            sb.AppendLine($"LP total perdu: -{Math.Abs(Math.Min(0, player.CurrentStats.NetLpChange))}");
             sb.AppendLine($"Progression nette: {player.CurrentStats.NetLpChange:+#;-#;0} LP");
             sb.AppendLine();
             

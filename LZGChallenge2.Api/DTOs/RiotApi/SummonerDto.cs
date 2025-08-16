@@ -4,6 +4,9 @@ namespace LZGChallenge2.Api.DTOs.RiotApi;
 
 public class SummonerDto
 {
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = null!;
+    
     [JsonPropertyName("profileIconId")]
     public int ProfileIconId { get; set; }
     

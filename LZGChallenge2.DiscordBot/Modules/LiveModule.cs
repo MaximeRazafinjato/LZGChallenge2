@@ -1,5 +1,5 @@
 using Discord.Commands;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Microsoft.Extensions.DependencyInjection;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Models;
@@ -22,13 +22,23 @@ public class LiveModule : ModuleBase<SocketCommandContext>
     public async Task LiveAsync()
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
         var riotApiService = scope.ServiceProvider.GetRequiredService<IRiotApiService>();
         var matchUpdateService = scope.ServiceProvider.GetRequiredService<MatchUpdateService>();
 
         await Context.Channel.SendMessageAsync("🔄 Mise à jour en cours des données de tous les joueurs...");
 
-        var players = await dbContext.Players.ToListAsync();
+        var players = await dbContext.Players.Find(p => p.IsActive).ToListAsync();
+        
+        // Load current stats for each player
+        foreach (var player in players)
+        {
+            var stats = await dbContext.PlayerStats
+                .Find(ps => ps.PlayerId == player.Id)
+                .FirstOrDefaultAsync();
+            player.CurrentStats = stats;
+        }
+        
         var updatedPlayers = new List<string>();
         var errors = new List<string>();
 
@@ -55,7 +65,7 @@ public class LiveModule : ModuleBase<SocketCommandContext>
                             TotalWins = soloQueueEntry.Wins,
                             TotalLosses = soloQueueEntry.Losses
                         };
-                        dbContext.PlayerStats.Add(stats);
+                        await dbContext.PlayerStats.InsertOneAsync(stats);
                         player.CurrentStats = stats;
                     }
                     else
@@ -102,9 +112,6 @@ public class LiveModule : ModuleBase<SocketCommandContext>
 
                     if (player.CurrentStats.TotalGames == 0)
                     {
-                        player.CurrentStats.TotalKills = 0;
-                        player.CurrentStats.TotalDeaths = 0;
-                        player.CurrentStats.TotalAssists = 0;
                         player.CurrentStats.CurrentWinStreak = 0;
                         player.CurrentStats.CurrentLoseStreak = 0;
                         player.CurrentStats.LongestWinStreak = 0;
@@ -112,7 +119,10 @@ public class LiveModule : ModuleBase<SocketCommandContext>
                     }
                 }
 
-                await dbContext.SaveChangesAsync();
+                if (player.CurrentStats != null)
+                {
+                    await dbContext.PlayerStats.ReplaceOneAsync(ps => ps.PlayerId == player.Id, player.CurrentStats);
+                }
             }
             catch (Exception ex)
             {

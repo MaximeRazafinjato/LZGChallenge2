@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Services;
 using LZGChallenge2.Api.Options;
@@ -17,8 +16,10 @@ builder.Configuration
 
 builder.Services.Configure<RiotApiOptions>(builder.Configuration.GetSection("RiotApi"));
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Configure MongoDB
+var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"]!;
+var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"]!;
+builder.Services.AddMongoDb(mongoConnectionString, mongoDatabaseName);
 
 builder.Services.AddHttpClient<IRiotApiService, RiotApiService>();
 builder.Services.AddSingleton<RateLimitService>();

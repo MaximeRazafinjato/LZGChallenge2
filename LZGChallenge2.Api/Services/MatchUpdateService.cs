@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Models;
 using LZGChallenge2.Api.DTOs.RiotApi;
@@ -15,13 +15,13 @@ public interface IMatchUpdateService
 
 public class MatchUpdateService : IMatchUpdateService
 {
-    private readonly AppDbContext _context;
+    private readonly MongoDbContext _context;
     private readonly IRiotApiService _riotApiService;
     private readonly ISeasonService _seasonService;
     private readonly ILogger<MatchUpdateService> _logger;
     
     public MatchUpdateService(
-        AppDbContext context,
+        MongoDbContext context,
         IRiotApiService riotApiService,
         ISeasonService seasonService,
         ILogger<MatchUpdateService> logger)
@@ -75,8 +75,8 @@ public class MatchUpdateService : IMatchUpdateService
             _logger.LogInformation("Found {Count} matches for player {GameName}#{TagLine}", matchIds.Count, player.GameName, player.TagLine);
             
             var existingMatchIds = await _context.Matches
-                .Where(m => m.PlayerId == player.Id)
-                .Select(m => m.MatchId)
+                .Find(m => m.PlayerId == player.Id)
+                .Project(m => m.MatchId)
                 .ToListAsync();
             
             var newMatchIds = matchIds.Where(id => !existingMatchIds.Contains(id)).ToList();
@@ -176,8 +176,7 @@ public class MatchUpdateService : IMatchUpdateService
                 CreatedAt = DateTime.UtcNow
             };
             
-            _context.Matches.Add(match);
-            await _context.SaveChangesAsync();
+            await _context.Matches.InsertOneAsync(match);
             
             _logger.LogDebug("Added match {MatchId} for player {GameName}#{TagLine} - {Result}", 
                 matchId, player.GameName, player.TagLine, participant.Win ? "Win" : "Loss");
@@ -194,11 +193,13 @@ public class MatchUpdateService : IMatchUpdateService
         {
             var currentSeason = _seasonService.GetCurrentSeason();
             var matches = await _context.Matches
-                .Where(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
-                .OrderByDescending(m => m.GameStartTime)
+                .Find(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
+                .SortByDescending(m => m.GameStartTime)
                 .ToListAsync();
             
-            var stats = await _context.PlayerStats.FirstOrDefaultAsync(ps => ps.PlayerId == player.Id);
+            var stats = await _context.PlayerStats
+                .Find(ps => ps.PlayerId == player.Id)
+                .FirstOrDefaultAsync();
             if (stats == null)
             {
                 _logger.LogWarning("No stats record found for player {GameName}#{TagLine}", 
@@ -240,7 +241,7 @@ public class MatchUpdateService : IMatchUpdateService
                 stats.TotalLpLost = 0;
                 stats.LastUpdated = DateTime.UtcNow;
                 
-                await _context.SaveChangesAsync();
+                await _context.PlayerStats.ReplaceOneAsync(ps => ps.PlayerId == player.Id, stats);
                 
                 _logger.LogInformation("Reset all detailed stats to zero for player {GameName}#{TagLine} (no matches found)", 
                     player.GameName, player.TagLine);
@@ -284,7 +285,7 @@ public class MatchUpdateService : IMatchUpdateService
             stats.LongestLoseStreak = longestLoseStreak;
             stats.LastUpdated = DateTime.UtcNow;
             
-            await _context.SaveChangesAsync();
+            await _context.PlayerStats.ReplaceOneAsync(ps => ps.PlayerId == player.Id, stats);
             
             _logger.LogInformation("Updated stats for player {GameName}#{TagLine}: {TotalGames} games total, {AnalyzedMatches} analyzed, KDA: {KDA:F2}", 
                 player.GameName, player.TagLine, stats.TotalGames, analyzedMatches, kda);
@@ -357,17 +358,14 @@ public class MatchUpdateService : IMatchUpdateService
         {
             var currentSeason = _seasonService.GetCurrentSeason();
             var matches = await _context.Matches
-                .Where(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
+                .Find(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
                 .ToListAsync();
             
             // Regrouper par champion
             var championGroups = matches.GroupBy(m => new { m.ChampionId, m.ChampionName });
             
             // Supprimer les anciennes stats pour ce joueur
-            var existingChampionStats = await _context.ChampionStats
-                .Where(cs => cs.PlayerId == player.Id)
-                .ToListAsync();
-            _context.ChampionStats.RemoveRange(existingChampionStats);
+            await _context.ChampionStats.DeleteManyAsync(cs => cs.PlayerId == player.Id);
             
             foreach (var championGroup in championGroups)
             {
@@ -392,10 +390,8 @@ public class MatchUpdateService : IMatchUpdateService
                     LastUpdated = DateTime.UtcNow
                 };
                 
-                _context.ChampionStats.Add(championStats);
+                await _context.ChampionStats.InsertOneAsync(championStats);
             }
-            
-            await _context.SaveChangesAsync();
             
             _logger.LogInformation("Updated champion stats for player {GameName}#{TagLine}: {ChampionCount} champions", 
                 player.GameName, player.TagLine, championGroups.Count());
@@ -412,17 +408,13 @@ public class MatchUpdateService : IMatchUpdateService
         {
             var currentSeason = _seasonService.GetCurrentSeason();
             var matches = await _context.Matches
-                .Where(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
+                .Find(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
                 .ToListAsync();
             
             if (!matches.Any())
             {
                 // Supprimer les stats existantes s'il n'y a pas de matches
-                var existingRoleStatsToRemove = await _context.RoleStats
-                    .Where(rs => rs.PlayerId == player.Id)
-                    .ToListAsync();
-                _context.RoleStats.RemoveRange(existingRoleStatsToRemove);
-                await _context.SaveChangesAsync();
+                await _context.RoleStats.DeleteManyAsync(rs => rs.PlayerId == player.Id);
                 return;
             }
             
@@ -431,10 +423,7 @@ public class MatchUpdateService : IMatchUpdateService
             var totalGames = matches.Count;
             
             // Supprimer les anciennes stats pour ce joueur
-            var existingRoleStats = await _context.RoleStats
-                .Where(rs => rs.PlayerId == player.Id)
-                .ToListAsync();
-            _context.RoleStats.RemoveRange(existingRoleStats);
+            await _context.RoleStats.DeleteManyAsync(rs => rs.PlayerId == player.Id);
             
             foreach (var roleGroup in roleGroups)
             {
@@ -457,10 +446,8 @@ public class MatchUpdateService : IMatchUpdateService
                     LastUpdated = DateTime.UtcNow
                 };
                 
-                _context.RoleStats.Add(roleStats);
+                await _context.RoleStats.InsertOneAsync(roleStats);
             }
-            
-            await _context.SaveChangesAsync();
             
             _logger.LogInformation("Updated role stats for player {GameName}#{TagLine}: {RoleCount} roles", 
                 player.GameName, player.TagLine, roleGroups.Count());

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using LZGChallenge2.Api.Data;
 using LZGChallenge2.Api.Models;
 using LZGChallenge2.Api.Services;
@@ -10,11 +10,11 @@ namespace LZGChallenge2.Api.Controllers;
 [Route("api/[controller]")]
 public class ChampionStatsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly MongoDbContext _context;
     private readonly ISeasonService _seasonService;
     private readonly ILogger<ChampionStatsController> _logger;
 
-    public ChampionStatsController(AppDbContext context, ISeasonService seasonService, ILogger<ChampionStatsController> logger)
+    public ChampionStatsController(MongoDbContext context, ISeasonService seasonService, ILogger<ChampionStatsController> logger)
     {
         _context = context;
         _seasonService = seasonService;
@@ -22,13 +22,13 @@ public class ChampionStatsController : ControllerBase
     }
 
     [HttpGet("{playerId}")]
-    public async Task<ActionResult<IEnumerable<ChampionStats>>> GetChampionStats(int playerId)
+    public async Task<ActionResult<IEnumerable<ChampionStats>>> GetChampionStats(string playerId)
     {
         try
         {
             var championStats = await _context.ChampionStats
-                .Where(cs => cs.PlayerId == playerId)
-                .OrderByDescending(cs => cs.GamesPlayed)
+                .Find(cs => cs.PlayerId == playerId)
+                .SortByDescending(cs => cs.GamesPlayed)
                 .ThenByDescending(cs => cs.WinRate)
                 .ToListAsync();
 
@@ -42,7 +42,7 @@ public class ChampionStatsController : ControllerBase
     }
 
     [HttpGet("{playerId}/top/{limit}")]
-    public async Task<ActionResult<IEnumerable<ChampionStats>>> GetTopChampions(int playerId, int limit = 5)
+    public async Task<ActionResult<IEnumerable<ChampionStats>>> GetTopChampions(string playerId, int limit = 5)
     {
         try
         {
@@ -52,10 +52,10 @@ public class ChampionStatsController : ControllerBase
             }
 
             var topChampions = await _context.ChampionStats
-                .Where(cs => cs.PlayerId == playerId)
-                .OrderByDescending(cs => cs.GamesPlayed)
+                .Find(cs => cs.PlayerId == playerId)
+                .SortByDescending(cs => cs.GamesPlayed)
                 .ThenByDescending(cs => cs.WinRate)
-                .Take(limit)
+                .Limit(limit)
                 .ToListAsync();
 
             return Ok(topChampions);
@@ -68,12 +68,13 @@ public class ChampionStatsController : ControllerBase
     }
 
     [HttpGet("{playerId}/champion/{championId}")]
-    public async Task<ActionResult<ChampionStats>> GetChampionStatsById(int playerId, int championId)
+    public async Task<ActionResult<ChampionStats>> GetChampionStatsById(string playerId, int championId)
     {
         try
         {
             var championStats = await _context.ChampionStats
-                .FirstOrDefaultAsync(cs => cs.PlayerId == playerId && cs.ChampionId == championId);
+                .Find(cs => cs.PlayerId == playerId && cs.ChampionId == championId)
+                .FirstOrDefaultAsync();
 
             if (championStats == null)
             {
@@ -95,8 +96,9 @@ public class ChampionStatsController : ControllerBase
         try
         {
             var player = await _context.Players
-                .FirstOrDefaultAsync(p => p.GameName.ToLower() == gameName.ToLower() && 
-                                        p.TagLine.ToLower() == tagLine.ToLower());
+                .Find(p => p.GameName.ToLower() == gameName.ToLower() && 
+                          p.TagLine.ToLower() == tagLine.ToLower())
+                .FirstOrDefaultAsync();
 
             if (player == null)
             {
