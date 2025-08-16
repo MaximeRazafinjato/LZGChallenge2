@@ -1,4 +1,4 @@
-# LZG Challenge 2 - Frontend React
+# LZG Challenge - Frontend React
 
 Interface utilisateur moderne pour suivre les compétitions SoloQ League of Legends avec mises à jour temps réel.
 
@@ -333,4 +333,4 @@ serve -s dist -l 3000
 
 ---
 
-**Frontend développé avec** ⚛️ **React pour LZG Challenge 2** 🎮
+**Frontend développé avec** ⚛️ **React pour LZG Challenge** 🎮

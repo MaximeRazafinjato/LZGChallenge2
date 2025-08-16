@@ -1,4 +1,4 @@
-# LZG Challenge 2 - API Backend
+# LZG Challenge - API Backend
 
 API REST .NET 9 pour la gestion des compétitions SoloQ League of Legends avec SignalR pour les mises à jour temps réel.
 
@@ -329,4 +329,4 @@ RiotApi__ApiKey=RGAPI-...
 
 ---
 
-**API développée pour LZG Challenge 2** 🎮
+**API développée pour LZG Challenge** 🎮

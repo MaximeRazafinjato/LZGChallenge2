@@ -1,10 +1,10 @@
-# LZG Challenge 2 - League of Legends SoloQ Competition
+# LZG Challenge - League of Legends SoloQ Competition
 
 Une application full-stack pour organiser et suivre des compétitions SoloQ entre amis sur League of Legends.
 
 ## 🎮 Aperçu
 
-LZG Challenge 2 est une plateforme complète permettant de :
+LZG Challenge est une plateforme complète permettant de :
 - Organiser des compétitions SoloQ entre amis
 - Suivre en temps réel les statistiques des participants
 - Consulter des leaderboards dynamiques

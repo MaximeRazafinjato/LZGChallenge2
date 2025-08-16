@@ -1,4 +1,4 @@
-# LZG Challenge 2 - Bot Discord
+# LZG Challenge - Bot Discord
 
 Bot Discord pour consulter et gérer les compétitions SoloQ League of Legends avec commandes intuitives et notifications automatiques.
 
@@ -233,4 +233,4 @@ RiotApi__ApiKey=RGAPI-...
 
 ---
 
-**Bot Discord développé pour LZG Challenge 2** 🎮
+**Bot Discord développé pour LZG Challenge** 🎮
