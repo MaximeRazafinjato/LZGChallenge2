@@ -4,3 +4,64 @@ GET {{LZGChallenge2.Api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Champion Stats API
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/championstats/1
+Accept: application/json
+
+###
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/championstats/1/top/5
+Accept: application/json
+
+###
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/championstats/1/champion/145
+Accept: application/json
+
+###
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/championstats/player/ExamplePlayer/EUW
+Accept: application/json
+
+###
+
+# Role Stats API
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/rolestats/1
+Accept: application/json
+
+###
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/rolestats/1/main
+Accept: application/json
+
+###
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/rolestats/1/role/TOP
+Accept: application/json
+
+###
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/rolestats/player/ExamplePlayer/EUW
+Accept: application/json
+
+###
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/rolestats/leaderboard/TOP
+Accept: application/json
+
+###
+
+# Admin API - Match Seasons
+
+GET {{LZGChallenge2.Api_HostAddress}}/api/admin/match-seasons-stats
+Accept: application/json
+
+###
+
+POST {{LZGChallenge2.Api_HostAddress}}/api/admin/update-match-seasons
+Accept: application/json
+
+###
