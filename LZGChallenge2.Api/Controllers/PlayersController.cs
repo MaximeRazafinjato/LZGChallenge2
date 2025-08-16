@@ -443,4 +443,91 @@ public class PlayersController : ControllerBase
             return StatusCode(500, "Error updating player matches");
         }
     }
+    
+    [HttpPost("refresh-all-ranks")]
+    public async Task<IActionResult> RefreshAllPlayersRanks()
+    {
+        try
+        {
+            var activePlayers = await _context.Players
+                .Include(p => p.CurrentStats)
+                .Where(p => p.IsActive)
+                .ToListAsync();
+                
+            if (!activePlayers.Any())
+            {
+                return Ok(new { message = "No active players found" });
+            }
+            
+            _logger.LogInformation("Starting refresh for {Count} active players", activePlayers.Count);
+            
+            // Traitement séquentiel avec un délai pour respecter les rate limits
+            var successCount = 0;
+            var errorCount = 0;
+            
+            foreach (var player in activePlayers)
+            {
+                try
+                {
+                    _logger.LogInformation("Processing player {GameName}#{TagLine} ({Current}/{Total})", 
+                        player.GameName, player.TagLine, successCount + errorCount + 1, activePlayers.Count);
+                    
+                    // 1. Récupérer les informations de rang actuelles
+                    var leagueEntries = await _riotApiService.GetLeagueEntriesByPuuidAsync(player.Puuid);
+                    var soloQEntry = leagueEntries.FirstOrDefault(e => e.QueueType == "RANKED_SOLO_5x5");
+                    
+                    if (player.CurrentStats != null)
+                    {
+                        // Mettre à jour les informations de rang ET les vraies statistiques W/L
+                        player.CurrentStats.CurrentTier = soloQEntry?.Tier;
+                        player.CurrentStats.CurrentRank = soloQEntry?.Rank;
+                        player.CurrentStats.CurrentLeaguePoints = soloQEntry?.LeaguePoints ?? 0;
+                        player.CurrentStats.TotalWins = soloQEntry?.Wins ?? 0;
+                        player.CurrentStats.TotalLosses = soloQEntry?.Losses ?? 0;
+                        player.CurrentStats.TotalGames = (soloQEntry?.Wins ?? 0) + (soloQEntry?.Losses ?? 0);
+                        player.CurrentStats.LastUpdated = DateTime.UtcNow;
+                        
+                        // 2. Mettre à jour les matches et statistiques détaillées (KDA, etc.) pour toute la saison
+                        await _matchUpdateService.UpdatePlayerMatchesAsync(player, 500);
+                        
+                        _logger.LogInformation("Successfully refreshed player {GameName}#{TagLine}: {Tier} {Rank} ({LP} LP)", 
+                            player.GameName, player.TagLine, player.CurrentStats.CurrentTier, 
+                            player.CurrentStats.CurrentRank, player.CurrentStats.CurrentLeaguePoints);
+                        
+                        successCount++;
+                    }
+                    
+                    // Petit délai entre chaque joueur pour éviter les rate limits
+                    await Task.Delay(500);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error refreshing rank for player {GameName}#{TagLine}", 
+                        player.GameName, player.TagLine);
+                    errorCount++;
+                }
+            }
+            
+            // Sauvegarder tous les changements
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Refresh completed: {Success} successful, {Errors} errors out of {Total} players", 
+                successCount, errorCount, activePlayers.Count);
+            
+            // Notifier tous les clients connectés que les données ont été mises à jour
+            await _hubContext.Clients.Group("Leaderboard").SendAsync("AllPlayersUpdated");
+            
+            return Ok(new { 
+                message = $"Refresh completed: {successCount} successful, {errorCount} errors",
+                playersUpdated = successCount,
+                totalPlayers = activePlayers.Count,
+                errors = errorCount
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error refreshing all player ranks");
+            return BadRequest("Error refreshing all player ranks");
+        }
+    }
 }
