@@ -90,6 +90,8 @@ public class LiveModule : ModuleBase<SocketCommandContext>
                 }
 
                 await matchUpdateService.UpdatePlayerMatchesAsync(player, 500);
+                
+                // Les stats par champion et rôle sont automatiquement calculées dans UpdatePlayerMatchesAsync
 
                 // Mettre à jour les statistiques de jeu
                 if (player.CurrentStats != null && soloQueueEntry != null)

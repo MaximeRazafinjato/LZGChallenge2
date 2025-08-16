@@ -9,21 +9,26 @@ public interface IMatchUpdateService
 {
     Task<bool> UpdatePlayerMatchesAsync(Player player, int maxMatches = 20);
     Task UpdatePlayerStatsAsync(Player player);
+    Task UpdateChampionStatsAsync(Player player);
+    Task UpdateRoleStatsAsync(Player player);
 }
 
 public class MatchUpdateService : IMatchUpdateService
 {
     private readonly AppDbContext _context;
     private readonly IRiotApiService _riotApiService;
+    private readonly ISeasonService _seasonService;
     private readonly ILogger<MatchUpdateService> _logger;
     
     public MatchUpdateService(
         AppDbContext context,
         IRiotApiService riotApiService,
+        ISeasonService seasonService,
         ILogger<MatchUpdateService> logger)
     {
         _context = context;
         _riotApiService = riotApiService;
+        _seasonService = seasonService;
         _logger = logger;
     }
     
@@ -101,6 +106,8 @@ public class MatchUpdateService : IMatchUpdateService
             // Mettre à jour les statistiques après avoir ajouté les matches
             // Toujours recalculer même s'il n'y a pas de nouveaux matches
             await UpdatePlayerStatsAsync(player);
+            await UpdateChampionStatsAsync(player);
+            await UpdateRoleStatsAsync(player);
             
             _logger.LogInformation("Successfully updated stats for player {GameName}#{TagLine} - Total matches found: {TotalMatches}", 
                 player.GameName, player.TagLine, matchIds.Count);
@@ -143,15 +150,17 @@ public class MatchUpdateService : IMatchUpdateService
             }
             
             // Créer l'entité Match
+            var gameStartTime = DateTimeOffset.FromUnixTimeMilliseconds(matchDto.Info.GameStartTimestamp).DateTime;
             var match = new Match
             {
                 MatchId = matchId,
                 PlayerId = player.Id,
-                GameStartTime = DateTimeOffset.FromUnixTimeMilliseconds(matchDto.Info.GameStartTimestamp).DateTime,
+                GameStartTime = gameStartTime,
                 GameEndTime = DateTimeOffset.FromUnixTimeMilliseconds(matchDto.Info.GameEndTimestamp).DateTime,
                 GameDuration = matchDto.Info.GameDuration,
                 Win = participant.Win,
                 QueueId = matchDto.Info.QueueId,
+                Season = _seasonService.GetSeasonFromDate(gameStartTime),
                 Kills = participant.Kills,
                 Deaths = participant.Deaths,
                 Assists = participant.Assists,
@@ -183,8 +192,9 @@ public class MatchUpdateService : IMatchUpdateService
     {
         try
         {
+            var currentSeason = _seasonService.GetCurrentSeason();
             var matches = await _context.Matches
-                .Where(m => m.PlayerId == player.Id)
+                .Where(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
                 .OrderByDescending(m => m.GameStartTime)
                 .ToListAsync();
             
@@ -339,5 +349,125 @@ public class MatchUpdateService : IMatchUpdateService
         }
         
         return (longestWinStreak, longestLoseStreak);
+    }
+    
+    public async Task UpdateChampionStatsAsync(Player player)
+    {
+        try
+        {
+            var currentSeason = _seasonService.GetCurrentSeason();
+            var matches = await _context.Matches
+                .Where(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
+                .ToListAsync();
+            
+            // Regrouper par champion
+            var championGroups = matches.GroupBy(m => new { m.ChampionId, m.ChampionName });
+            
+            // Supprimer les anciennes stats pour ce joueur
+            var existingChampionStats = await _context.ChampionStats
+                .Where(cs => cs.PlayerId == player.Id)
+                .ToListAsync();
+            _context.ChampionStats.RemoveRange(existingChampionStats);
+            
+            foreach (var championGroup in championGroups)
+            {
+                var championMatches = championGroup.ToList();
+                
+                var championStats = new ChampionStats
+                {
+                    PlayerId = player.Id,
+                    ChampionId = championGroup.Key.ChampionId,
+                    ChampionName = championGroup.Key.ChampionName,
+                    GamesPlayed = championMatches.Count,
+                    Wins = championMatches.Count(m => m.Win),
+                    Losses = championMatches.Count(m => !m.Win),
+                    TotalKills = championMatches.Sum(m => m.Kills),
+                    TotalDeaths = championMatches.Sum(m => m.Deaths),
+                    TotalAssists = championMatches.Sum(m => m.Assists),
+                    AverageCreepScore = championMatches.Average(m => m.CreepScore),
+                    AverageVisionScore = championMatches.Average(m => m.VisionScore),
+                    AverageDamageDealt = championMatches.Average(m => m.TotalDamageDealtToChampions),
+                    AverageGameDuration = championMatches.Average(m => m.GameDuration),
+                    LastPlayedAt = championMatches.Max(m => m.GameStartTime),
+                    LastUpdated = DateTime.UtcNow
+                };
+                
+                _context.ChampionStats.Add(championStats);
+            }
+            
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Updated champion stats for player {GameName}#{TagLine}: {ChampionCount} champions", 
+                player.GameName, player.TagLine, championGroups.Count());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating champion stats for player {PlayerId}", player.Id);
+        }
+    }
+    
+    public async Task UpdateRoleStatsAsync(Player player)
+    {
+        try
+        {
+            var currentSeason = _seasonService.GetCurrentSeason();
+            var matches = await _context.Matches
+                .Where(m => m.PlayerId == player.Id && m.QueueId == 420 && m.Season == currentSeason)
+                .ToListAsync();
+            
+            if (!matches.Any())
+            {
+                // Supprimer les stats existantes s'il n'y a pas de matches
+                var existingRoleStatsToRemove = await _context.RoleStats
+                    .Where(rs => rs.PlayerId == player.Id)
+                    .ToListAsync();
+                _context.RoleStats.RemoveRange(existingRoleStatsToRemove);
+                await _context.SaveChangesAsync();
+                return;
+            }
+            
+            // Regrouper par rôle
+            var roleGroups = matches.GroupBy(m => m.Position);
+            var totalGames = matches.Count;
+            
+            // Supprimer les anciennes stats pour ce joueur
+            var existingRoleStats = await _context.RoleStats
+                .Where(rs => rs.PlayerId == player.Id)
+                .ToListAsync();
+            _context.RoleStats.RemoveRange(existingRoleStats);
+            
+            foreach (var roleGroup in roleGroups)
+            {
+                var roleMatches = roleGroup.ToList();
+                
+                var roleStats = new RoleStats
+                {
+                    PlayerId = player.Id,
+                    Position = roleGroup.Key,
+                    GamesPlayed = roleMatches.Count,
+                    Wins = roleMatches.Count(m => m.Win),
+                    Losses = roleMatches.Count(m => !m.Win),
+                    PlayRate = (double)roleMatches.Count / totalGames * 100,
+                    TotalKills = roleMatches.Sum(m => m.Kills),
+                    TotalDeaths = roleMatches.Sum(m => m.Deaths),
+                    TotalAssists = roleMatches.Sum(m => m.Assists),
+                    AverageCreepScore = roleMatches.Average(m => m.CreepScore),
+                    AverageVisionScore = roleMatches.Average(m => m.VisionScore),
+                    AverageDamageDealt = roleMatches.Average(m => m.TotalDamageDealtToChampions),
+                    LastUpdated = DateTime.UtcNow
+                };
+                
+                _context.RoleStats.Add(roleStats);
+            }
+            
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Updated role stats for player {GameName}#{TagLine}: {RoleCount} roles", 
+                player.GameName, player.TagLine, roleGroups.Count());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating role stats for player {PlayerId}", player.Id);
+        }
     }
 }
