@@ -274,6 +274,11 @@ public class PlayersController : ControllerBase
             await _context.RoleStats.DeleteManyAsync(rs => rs.PlayerId == id);
             await _context.Matches.DeleteManyAsync(m => m.PlayerId == id);
 
+            // Notifier les clients connectés via SignalR
+            await _hubContext.Clients.All.SendAsync("PlayerRemoved", id);
+            
+            _logger.LogInformation("Player deleted: {PlayerId}", id);
+
             return NoContent();
         }
         catch (Exception ex)

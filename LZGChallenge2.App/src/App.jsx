@@ -45,12 +45,11 @@ function App() {
           })
           
           connection.on('PlayerRemoved', (playerId) => {
-            setPlayers(prev => prev.filter(p => p.id !== playerId))
+            setPlayers(prev => prev.filter(p => p.Id !== playerId))
             loadData()
           })
           
-          connection.on('StatsUpdated', (updatedPlayer) => {
-            setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p))
+          connection.on('PlayerUpdated', (playerId) => {
             loadData()
           })
         })
