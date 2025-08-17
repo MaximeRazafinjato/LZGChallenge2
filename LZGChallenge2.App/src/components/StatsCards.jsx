@@ -42,7 +42,11 @@ const StatCard = ({ icon, title, value, subtitle, color, loading, delay = 0 }) =
             <Box
               sx={{
                 p: 1.5,
-                borderRadius: 2,
+                borderRadius: '50%',
+                aspectRatio: '1/1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 background: `${color}20`,
                 border: `1px solid ${color}40`,
               }}

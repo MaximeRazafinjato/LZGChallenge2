@@ -102,6 +102,7 @@ export const getChampionImageStyles = (size = 'medium') => {
     height: imageSize,
     borderRadius: '50%',
     objectFit: 'cover',
+    aspectRatio: '1/1',
     border: '2px solid rgba(200,155,60,0.3)'
   }
 }

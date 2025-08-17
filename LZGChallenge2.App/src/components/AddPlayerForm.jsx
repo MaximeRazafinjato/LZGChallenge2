@@ -124,7 +124,11 @@ const AddPlayerForm = ({ open, onClose, onPlayerAdded }) => {
           <Box
             sx={{
               p: 1.5,
-              borderRadius: 2,
+              borderRadius: '50%',
+              aspectRatio: '1/1',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               background: 'rgba(200,155,60,0.2)',
               border: '1px solid rgba(200,155,60,0.3)',
             }}

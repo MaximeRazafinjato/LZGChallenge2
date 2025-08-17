@@ -152,7 +152,11 @@ const ChampionModal = ({ open, onClose, playerId, playerName }) => {
               <Box
                 sx={{
                   p: 1,
-                  borderRadius: 2,
+                  borderRadius: '50%',
+                  aspectRatio: '1/1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   background: 'linear-gradient(45deg, #C89B3C 30%, #F0E6D2 90%)',
                 }}
               >
@@ -338,6 +342,7 @@ const ChampionModal = ({ open, onClose, playerId, playerName }) => {
                                   height: 40,
                                   borderRadius: '50%',
                                   objectFit: 'cover',
+                                  aspectRatio: '1/1',
                                   border: '2px solid rgba(200,155,60,0.3)',
                                   boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
                                   display: 'block',

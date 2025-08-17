@@ -173,7 +173,11 @@ const MatchHistoryModal = ({ open, onClose, playerId, playerName }) => {
               <Box
                 sx={{
                   p: 1,
-                  borderRadius: 2,
+                  borderRadius: '50%',
+                  aspectRatio: '1/1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   background: 'linear-gradient(45deg, #FFD700 30%, #F0E6D2 90%)',
                 }}
               >
@@ -184,27 +188,6 @@ const MatchHistoryModal = ({ open, onClose, playerId, playerName }) => {
                   <Typography variant="h5" sx={{ fontWeight: 600, color: '#F0E6D2' }}>
                     Historique Solo Queue - {playerName}
                   </Typography>
-                  <Badge 
-                    badgeContent={seasonInfo?.currentSeason || '?'} 
-                    sx={{ 
-                      '& .MuiBadge-badge': { 
-                        backgroundColor: '#FFD700',
-                        color: '#1E2328',
-                        fontWeight: 600,
-                        fontSize: '0.7rem'
-                      }
-                    }}
-                  >
-                    <Chip 
-                      label="SoloQ" 
-                      size="small"
-                      sx={{
-                        backgroundColor: 'rgba(255,215,0,0.2)',
-                        color: '#FFD700',
-                        fontWeight: 600
-                      }}
-                    />
-                  </Badge>
                 </Box>
                 <Typography variant="body2" color="text.secondary">
                   Saison {seasonInfo?.currentSeason || '?'} • Queue ID 420 • Solo/Duo Classé uniquement
@@ -460,6 +443,7 @@ const MatchHistoryModal = ({ open, onClose, playerId, playerName }) => {
                                   height: 32,
                                   borderRadius: '50%',
                                   objectFit: 'cover',
+                                  aspectRatio: '1/1',
                                   border: '2px solid rgba(255,215,0,0.3)',
                                   flexShrink: 0
                                 }}

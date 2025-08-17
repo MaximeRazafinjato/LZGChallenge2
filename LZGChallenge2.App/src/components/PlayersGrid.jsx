@@ -61,7 +61,11 @@ const PlayerCard = ({ player, onRemove, index }) => {
     >
       <Card
         sx={{
-          height: '100%',
+          width: 'calc(25% - 18px)',
+          minWidth: 280,
+          height: 320,
+          minHeight: 320,
+          maxHeight: 320,
           position: 'relative',
           transition: 'all 0.3s ease',
           '&:hover': {
@@ -168,55 +172,50 @@ const PlayerCard = ({ player, onRemove, index }) => {
                 />
               </Box>
 
-              {/* Stats de jeu */}
-              <Grid container spacing={1}>
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Parties
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-                      {player.currentStats.totalGames}
-                    </Typography>
-                  </Box>
-                </Grid>
+              {/* Stats de jeu sur une seule ligne */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                <Box sx={{ textAlign: 'center', flex: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    Parties
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                    {player.currentStats.totalGames}
+                  </Typography>
+                </Box>
                 
-                <Grid item xs={6}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Winrate
-                    </Typography>
-                    <Typography 
-                      variant="h4" 
-                      sx={{ 
-                        fontWeight: 600,
-                        fontSize: '1rem',
-                        color: player.currentStats.winRate >= 60 ? '#50C878' : 
-                               player.currentStats.winRate >= 50 ? '#F39C12' : '#E74C3C'
-                      }}
-                    >
-                      {player.currentStats.winRate?.toFixed(1)}%
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
+                <Box sx={{ textAlign: 'center', flex: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    Winrate
+                  </Typography>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      color: player.currentStats.winRate >= 60 ? '#50C878' : 
+                             player.currentStats.winRate >= 50 ? '#F39C12' : '#E74C3C'
+                    }}
+                  >
+                    {player.currentStats.winRate?.toFixed(1)}%
+                  </Typography>
+                </Box>
 
-              {/* KDA */}
-              <Box sx={{ mt: 1.5, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  KDA Moyen
-                </Typography>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
-                    fontWeight: 600,
-                    fontSize: '1rem',
-                    color: player.currentStats.kda >= 2 ? '#50C878' : 
-                           player.currentStats.kda >= 1 ? '#F39C12' : '#E74C3C'
-                  }}
-                >
-                  {player.currentStats.kda?.toFixed(2)}
-                </Typography>
+                <Box sx={{ textAlign: 'center', flex: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    KDA Moyen
+                  </Typography>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      color: player.currentStats.kda >= 2 ? '#50C878' : 
+                             player.currentStats.kda >= 1 ? '#F39C12' : '#E74C3C'
+                    }}
+                  >
+                    {player.currentStats.kda?.toFixed(2)}
+                  </Typography>
+                </Box>
               </Box>
 
               {/* Progression LP */}
@@ -263,24 +262,33 @@ const PlayersGrid = ({ players = [], onRemovePlayer, loading }) => {
         <Typography variant="h3" sx={{ fontWeight: 600, mb: 3 }}>
           Participants ({players.length})
         </Typography>
-        <Grid container spacing={3}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexWrap: 'wrap',
+          gap: 3,
+          justifyContent: 'center'
+        }}>
           {[...Array(6)].map((_, i) => (
-            <Grid item xs={12} sm={6} md={4} key={i}>
-              <Card>
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Skeleton variant="circular" width={48} height={48} />
-                    <Box sx={{ flex: 1 }}>
-                      <Skeleton variant="text" width="60%" height={24} />
-                      <Skeleton variant="text" width="40%" height={20} />
-                    </Box>
+            <Card key={i} sx={{ 
+              width: 'calc(25% - 18px)',
+              minWidth: 280,
+              height: 320, 
+              minHeight: 320, 
+              maxHeight: 320 
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Skeleton variant="circular" width={48} height={48} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width="60%" height={24} />
+                    <Skeleton variant="text" width="40%" height={20} />
                   </Box>
-                  <Skeleton variant="rectangular" height={100} />
-                </CardContent>
-              </Card>
-            </Grid>
+                </Box>
+                <Skeleton variant="rectangular" height={100} />
+              </CardContent>
+            </Card>
           ))}
-        </Grid>
+        </Box>
       </Box>
     )
   }
@@ -295,7 +303,11 @@ const PlayersGrid = ({ players = [], onRemovePlayer, loading }) => {
         <Box
           sx={{
             p: 1.5,
-            borderRadius: 2,
+            borderRadius: '50%',
+            aspectRatio: '1/1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             background: 'rgba(0,245,255,0.2)',
             border: '1px solid rgba(0,245,255,0.3)',
           }}
@@ -320,21 +332,25 @@ const PlayersGrid = ({ players = [], onRemovePlayer, loading }) => {
           </CardContent>
         </Card>
       ) : (
-        <Grid container spacing={3}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexWrap: 'wrap',
+          gap: 3,
+          justifyContent: players.filter(p => p.isActive).length % 4 === 0 ? 'center' : 'flex-start'
+        }}>
           <AnimatePresence mode="popLayout">
             {players
               .filter(player => player.isActive)
               .map((player, index) => (
-                <Grid item xs={12} sm={6} md={4} key={player.id}>
-                  <PlayerCard 
-                    player={player} 
-                    onRemove={onRemovePlayer}
-                    index={index}
-                  />
-                </Grid>
+                <PlayerCard 
+                  key={player.id}
+                  player={player} 
+                  onRemove={onRemovePlayer}
+                  index={index}
+                />
               ))}
           </AnimatePresence>
-        </Grid>
+        </Box>
       )}
     </motion.div>
   )

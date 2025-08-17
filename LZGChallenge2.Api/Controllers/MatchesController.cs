@@ -18,23 +18,10 @@ public class MatchesController : ControllerBase
     // Constantes pour filtrage strict
     private const int SOLOQ_QUEUE_ID = 420;
     
-    // Détection automatique de la saison actuelle basée sur les données disponibles
-    private async Task<int> GetCurrentSeasonAsync()
+    // Utilise le SeasonService pour déterminer la saison actuelle de League of Legends
+    private int GetCurrentSeason()
     {
-        try
-        {
-            var latestMatch = await _context.Matches
-                .Find(m => m.QueueId == SOLOQ_QUEUE_ID)
-                .SortByDescending(m => m.GameStartTime)
-                .Limit(1)
-                .FirstOrDefaultAsync();
-                
-            return latestMatch?.Season ?? DateTime.Now.Year;
-        }
-        catch
-        {
-            return DateTime.Now.Year; // Fallback sur l'année actuelle
-        }
+        return _seasonService.GetCurrentSeason();
     }
 
     public MatchesController(MongoDbContext context, ISeasonService seasonService, ILogger<MatchesController> logger)
@@ -49,7 +36,7 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            var currentSeason = await GetCurrentSeasonAsync();
+            var currentSeason = GetCurrentSeason();
             
             // Compter les parties SoloQ pour la saison actuelle
             var soloQCount = await _context.Matches
@@ -84,7 +71,7 @@ public class MatchesController : ControllerBase
             }
 
             // Détection de la saison actuelle et filtrage strict SoloQ
-            var currentSeason = await GetCurrentSeasonAsync();
+            var currentSeason = GetCurrentSeason();
             var matches = await _context.Matches
                 .Find(m => m.PlayerId == playerId && 
                           m.QueueId == SOLOQ_QUEUE_ID && 
@@ -156,7 +143,7 @@ public class MatchesController : ControllerBase
             }
 
             // Base: Toujours SoloQ + Saison actuelle détectée
-            var currentSeason = await GetCurrentSeasonAsync();
+            var currentSeason = GetCurrentSeason();
             var filter = Builders<Match>.Filter.And(
                 Builders<Match>.Filter.Eq(m => m.PlayerId, playerId),
                 Builders<Match>.Filter.Eq(m => m.QueueId, SOLOQ_QUEUE_ID),
@@ -255,7 +242,7 @@ public class MatchesController : ControllerBase
         try
         {
             // Stats uniquement pour SoloQ + Saison actuelle
-            var currentSeason = await GetCurrentSeasonAsync();
+            var currentSeason = GetCurrentSeason();
             var matches = await _context.Matches
                 .Find(m => m.PlayerId == playerId && 
                           m.QueueId == SOLOQ_QUEUE_ID && 

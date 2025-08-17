@@ -209,8 +209,47 @@ public class PlayersController : ControllerBase
                 await _matchUpdateService.UpdatePlayerMatchesAsync(player);
                 _logger.LogInformation("Successfully updated data for new player {GameName}#{TagLine}", player.GameName, player.TagLine);
                 
-                // Notifier les clients connectés
-                await _hubContext.Clients.All.SendAsync("PlayerAdded", player);
+                // Récupérer les statistiques mises à jour pour les envoyer via SignalR
+                var updatedStats = await _context.PlayerStats
+                    .Find(ps => ps.PlayerId == player.Id)
+                    .FirstOrDefaultAsync();
+
+                var playerDto = new PlayerDto
+                {
+                    Id = player.Id,
+                    RiotId = player.RiotId,
+                    GameName = player.GameName,
+                    TagLine = player.TagLine,
+                    Region = player.Region,
+                    JoinedAt = player.JoinedAt,
+                    IsActive = player.IsActive,
+                    CurrentStats = updatedStats == null ? null : new PlayerStatsDto
+                    {
+                        CurrentTier = updatedStats.CurrentTier,
+                        CurrentRank = updatedStats.CurrentRank,
+                        CurrentLeaguePoints = updatedStats.CurrentLeaguePoints,
+                        TotalGames = updatedStats.TotalGames,
+                        TotalWins = updatedStats.TotalWins,
+                        TotalLosses = updatedStats.TotalLosses,
+                        WinRate = updatedStats.WinRate,
+                        AverageKills = updatedStats.AverageKills,
+                        AverageDeaths = updatedStats.AverageDeaths,
+                        AverageAssists = updatedStats.AverageAssists,
+                        KDA = updatedStats.KDA,
+                        AverageCreepScore = updatedStats.AverageCreepScore,
+                        AverageVisionScore = updatedStats.AverageVisionScore,
+                        AverageDamageDealt = updatedStats.AverageDamageDealt,
+                        CurrentWinStreak = updatedStats.CurrentWinStreak,
+                        CurrentLoseStreak = updatedStats.CurrentLoseStreak,
+                        LongestWinStreak = updatedStats.LongestWinStreak,
+                        LongestLoseStreak = updatedStats.LongestLoseStreak,
+                        NetLpChange = updatedStats.NetLpChange,
+                        LastUpdated = updatedStats.LastUpdated
+                    }
+                };
+                
+                // Notifier les clients connectés avec les données complètes
+                await _hubContext.Clients.All.SendAsync("PlayerAdded", playerDto);
             }
             catch (Exception updateEx)
             {
