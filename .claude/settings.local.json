@@ -6,7 +6,9 @@
       "Bash(dotnet add package:*)",
       "Bash(dotnet add reference:*)",
       "Bash(dotnet ef database:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(pnpm add:*)",
+      "Bash(/dev/null)"
     ],
     "defaultMode": "acceptEdits"
   }

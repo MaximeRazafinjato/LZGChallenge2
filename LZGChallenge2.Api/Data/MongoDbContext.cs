@@ -17,6 +17,12 @@ public class MongoDbContext
     public IMongoCollection<PlayerStats> PlayerStats => _database.GetCollection<PlayerStats>("playerStats");
     public IMongoCollection<ChampionStats> ChampionStats => _database.GetCollection<ChampionStats>("championStats");
     public IMongoCollection<RoleStats> RoleStats => _database.GetCollection<RoleStats>("roleStats");
+    
+    // Authentication collections
+    public IMongoCollection<User> Users => _database.GetCollection<User>("users");
+    public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshTokens");
+    public IMongoCollection<EmailVerificationToken> EmailVerificationTokens => _database.GetCollection<EmailVerificationToken>("emailVerificationTokens");
+    public IMongoCollection<PasswordResetToken> PasswordResetTokens => _database.GetCollection<PasswordResetToken>("passwordResetTokens");
 }
 
 public static class MongoDbExtensions
