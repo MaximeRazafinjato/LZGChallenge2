@@ -32,8 +32,12 @@ const MainApp = () => {
 
   useEffect(() => {
     // Établir la connexion SignalR
+    const signalRUrl = import.meta.env.VITE_API_BASE_URL 
+      ? import.meta.env.VITE_API_BASE_URL.replace('/api', '/leaderboardHub')
+      : 'https://localhost:44393/leaderboardHub';
+    
     const newConnection = new HubConnectionBuilder()
-      .withUrl('https://localhost:44393/leaderboardHub')
+      .withUrl(signalRUrl)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Information)
       .build()
