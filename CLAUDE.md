@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-Always update all of the ReadMes when you do an update on anything.
+**Always update all ReadMes when you change something in the project.**
 
 ## Project Overview
 
@@ -24,31 +24,20 @@ Compétition « SoloQ Challenge » entre amis sur League of Legends, environ dix
 
 ## Development Commands
 
-### Frontend (React + Vite)
-Run from `LZGChallenge2.App/` directory:
-- **Development server**: `pnpm dev` - Starts Vite dev server with HMR on default port
-- **Build**: `pnpm build` - Creates production build in `dist/`
-- **Lint**: `pnpm lint` - Runs ESLint on all JS/JSX files
-- **Preview**: `pnpm preview` - Preview production build locally
+### Frontend (`LZGChallenge2.App/`)
+- `pnpm dev` → Start dev server (Vite HMR, port 5173+)  
+- `pnpm build` → Production build in `dist/`  
+- `pnpm lint` → Run ESLint  
+- `pnpm preview` → Preview prod build  
 
-### Backend (.NET API)
-Run from `LZGChallenge2.Api/` directory:
-- **Development server**: `dotnet run` - Starts API on https://localhost:44393
-- **Build**: `dotnet build` - Compiles the application
-- **Restore packages**: `dotnet restore` - Restores NuGet packages
+### Backend (`LZGChallenge2.Api/`)
+- `dotnet run` → Start API (`https://localhost:44393`)  
+- `dotnet build` → Build the API  
+- `dotnet restore` → Restore NuGet packages  
 
-### Discord Bot (.NET Console)
-Run from `LZGChallenge2.DiscordBot/` directory:
-- **Development server**: `dotnet run` - Starts Discord bot
-- **Build**: `dotnet build` - Compiles the application
-- **Restore packages**: `dotnet restore` - Restores NuGet packages
-
-### API Testing
-- HTTP client requests are available in `LZGChallenge2.Api.http`
-- Key endpoints: 
-  - `GET https://localhost:44393/api/leaderboard` - Current leaderboard
-  - `GET https://localhost:44393/api/leaderboard/summary` - Statistics summary
-  - `POST https://localhost:44393/api/players` - Add new participant
+### Discord Bot (`LZGChallenge2.DiscordBot/`)
+- `dotnet run` → Start Discord bot  
+- `dotnet build` / `dotnet restore` → Standard build & restore 
 
 ## Architecture
 
@@ -112,18 +101,6 @@ LZGChallenge2/
 - **ChampionStats**: Statistics grouped by champion per player
 - **RoleStats**: Statistics grouped by role per player
 
-### API Endpoints
-- **Leaderboard**: `/api/leaderboard` - Main leaderboard with sorting
-- **Summary**: `/api/leaderboard/summary` - Challenge statistics overview
-- **Players**: `/api/players` - CRUD operations for participants
-- **Champion Stats**: `/api/championstats/{playerId}` - Player's champion performance
-- **Matches**: `/api/matches/{playerId}` - Player's match history
-
-### SignalR Events
-- **PlayerAdded**: New participant added to challenge
-- **PlayerRemoved**: Participant removed from challenge
-- **PlayerUpdated**: Participant's data refreshed
-
 ### Configuration
 - **CORS**: Configured for frontend ports (5173, 5174, 5175)
 - **MongoDB**: Atlas connection string in appsettings
@@ -156,30 +133,3 @@ LZGChallenge2/
 - **Bulk refresh**: Refresh all participants via API or Discord command
 - **Automatic updates**: New matches are detected and stats recalculated
 - **Real-time updates**: SignalR pushes changes to all connected clients
-
-### Discord Bot Commands
-- **!leaderboard**: Display current standings
-- **!stats [player]**: Show specific player statistics
-- **!refresh**: Trigger data refresh for all players
-
-## Development Notes
-- **MongoDB required**: Application uses MongoDB Atlas for data persistence
-- **Riot API key**: Must be valid and have sufficient rate limits
-- **SignalR**: Real-time communication between API and frontend
-- **Material-UI**: Consistent theming with League of Legends aesthetic
-- **Error handling**: Robust error handling for API failures and network issues
-- **Rate limiting**: Riot API calls are rate-limited to respect API constraints
-
-## Deployment Considerations
-- **Environment Variables**: Discord token, MongoDB connection string
-- **HTTPS**: Required for production SignalR connections
-- **CORS**: Update allowed origins for production domain
-- **API Keys**: Secure storage of Riot API key
-- **Database**: MongoDB Atlas or self-hosted MongoDB instance
-
-## Recent Fixes and Improvements
-- ✅ Fixed missing `/api/leaderboard/summary` endpoint
-- ✅ Automated data retrieval on participant addition
-- ✅ Fixed participant deletion with proper SignalR notifications
-- ✅ Corrected SignalR event names and property mappings
-- ✅ Added comprehensive error handling and logging
