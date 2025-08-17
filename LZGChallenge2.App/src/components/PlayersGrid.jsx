@@ -18,7 +18,7 @@ import {
   TrendingUp,
   TrendingDown
 } from '@mui/icons-material'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const PlayerCard = ({ player, onRemove, index }) => {
   const formatJoinDate = (dateString) => {
@@ -54,8 +54,10 @@ const PlayerCard = ({ player, onRemove, index }) => {
     <motion.div
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
+      exit={{ y: -20, opacity: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      layout
     >
       <Card
         sx={{
@@ -319,17 +321,19 @@ const PlayersGrid = ({ players = [], onRemovePlayer, loading }) => {
         </Card>
       ) : (
         <Grid container spacing={3}>
-          {players
-            .filter(player => player.isActive)
-            .map((player, index) => (
-              <Grid item xs={12} sm={6} md={4} key={player.id}>
-                <PlayerCard 
-                  player={player} 
-                  onRemove={onRemovePlayer}
-                  index={index}
-                />
-              </Grid>
-            ))}
+          <AnimatePresence mode="popLayout">
+            {players
+              .filter(player => player.isActive)
+              .map((player, index) => (
+                <Grid item xs={12} sm={6} md={4} key={player.id}>
+                  <PlayerCard 
+                    player={player} 
+                    onRemove={onRemovePlayer}
+                    index={index}
+                  />
+                </Grid>
+              ))}
+          </AnimatePresence>
         </Grid>
       )}
     </motion.div>

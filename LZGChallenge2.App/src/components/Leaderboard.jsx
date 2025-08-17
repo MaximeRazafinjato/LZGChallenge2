@@ -31,7 +31,7 @@ import {
   HeartBroken,
   SportsEsports
 } from '@mui/icons-material'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import ChampionModal from './ChampionModal'
 import MatchHistoryModal from './MatchHistoryModal'
 import { getChampionImageUrlNormalized } from '../utils/championUtils'
@@ -255,13 +255,16 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {leaderboard.map((player, index) => (
-                    <motion.tr
-                      key={player.playerId}
-                      initial={{ x: -20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      component={TableRow}
+                  <AnimatePresence mode="popLayout">
+                    {leaderboard.map((player, index) => (
+                      <motion.tr
+                        key={player.playerId}
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 20, opacity: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        layout
+                        component={TableRow}
                       sx={{
                         '&:hover': { 
                           backgroundColor: 'rgba(200,155,60,0.1)',
@@ -508,6 +511,7 @@ const Leaderboard = ({ leaderboard = [], loading, onRefresh, onSortChange }) => 
                       </TableCell>
                     </motion.tr>
                   ))}
+                  </AnimatePresence>
                 </TableBody>
               </Table>
             </TableContainer>

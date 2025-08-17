@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ThemeProvider } from '@mui/material/styles'
-import { CssBaseline, Container, Box, Fab } from '@mui/material'
+import { CssBaseline, Container, Box, Fab, Snackbar, Alert, LinearProgress } from '@mui/material'
 import { PersonAdd } from '@mui/icons-material'
 import theme from './theme'
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
@@ -17,6 +17,8 @@ function App() {
   const [connection, setConnection] = useState(null)
   const [loading, setLoading] = useState(false)
   const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false)
+  const [updateInProgress, setUpdateInProgress] = useState(false)
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' })
 
   useEffect(() => {
     // Établir la connexion SignalR
@@ -41,16 +43,44 @@ function App() {
           // Écouter les mises à jour
           connection.on('PlayerAdded', (player) => {
             setPlayers(prev => [...prev, player])
-            loadData()
+            setUpdateInProgress(true)
+            setNotification({ 
+              open: true, 
+              message: `${player.gameName}#${player.tagLine} ajouté au challenge`, 
+              severity: 'success' 
+            })
+            // Mise à jour ciblée : juste leaderboard et summary (pas les players)
+            Promise.all([loadLeaderboard(), loadSummary()])
+              .finally(() => setUpdateInProgress(false))
           })
           
           connection.on('PlayerRemoved', (playerId) => {
-            setPlayers(prev => prev.filter(p => p.Id !== playerId))
-            loadData()
+            const removedPlayer = players.find(p => p.id === playerId)
+            setPlayers(prev => prev.filter(p => p.id !== playerId))
+            setUpdateInProgress(true)
+            setNotification({ 
+              open: true, 
+              message: `Participant supprimé du challenge`, 
+              severity: 'info' 
+            })
+            // Mise à jour ciblée : juste leaderboard et summary (pas les players)
+            Promise.all([loadLeaderboard(), loadSummary()])
+              .finally(() => setUpdateInProgress(false))
           })
           
           connection.on('PlayerUpdated', (playerId) => {
-            loadData()
+            const updatedPlayer = players.find(p => p.id === playerId)
+            setUpdateInProgress(true)
+            setNotification({ 
+              open: true, 
+              message: `Données mises à jour${updatedPlayer ? ` pour ${updatedPlayer.gameName}` : ''}`, 
+              severity: 'info' 
+            })
+            // Mise à jour ciblée : charger les nouvelles données du joueur spécifique
+            updateSpecificPlayer(playerId)
+            // Mettre à jour le leaderboard et summary
+            Promise.all([loadLeaderboard(), loadSummary()])
+              .finally(() => setUpdateInProgress(false))
           })
         })
         .catch(e => console.log('Connection failed: ', e))
@@ -146,6 +176,20 @@ function App() {
     }
   }
 
+  const updateSpecificPlayer = async (playerId) => {
+    try {
+      const response = await fetch(`https://localhost:44393/api/players/${playerId}`)
+      if (response.ok) {
+        const updatedPlayer = await response.json()
+        setPlayers(prev => prev.map(p => 
+          p.id === playerId ? updatedPlayer : p
+        ))
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du joueur:', error)
+    }
+  }
+
   const removePlayer = async (playerId) => {
     try {
       const response = await fetch(`https://localhost:44393/api/players/${playerId}`, {
@@ -208,6 +252,20 @@ function App() {
       >
         <Header />
         
+        {/* Indicateur de mise à jour en cours */}
+        {updateInProgress && (
+          <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1400 }}>
+            <LinearProgress 
+              sx={{ 
+                backgroundColor: 'rgba(200,155,60,0.2)',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: '#C89B3C'
+                }
+              }} 
+            />
+          </Box>
+        )}
+        
         <Container maxWidth="xl" sx={{ py: 4 }}>
           {/* Stats Cards */}
           <StatsCards summary={summary} loading={loading} />
@@ -260,6 +318,34 @@ function App() {
         >
           <PersonAdd sx={{ fontSize: 32 }} />
         </Fab>
+
+        {/* Notifications toast */}
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={3000}
+          onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert
+            onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+            severity={notification.severity}
+            variant="filled"
+            sx={{
+              backgroundColor: 
+                notification.severity === 'success' ? '#50C878' :
+                notification.severity === 'info' ? '#C89B3C' : '#E74C3C',
+              '& .MuiAlert-icon': {
+                color: '#1E2328'
+              },
+              '& .MuiAlert-message': {
+                color: '#1E2328',
+                fontWeight: 500
+              }
+            }}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   )

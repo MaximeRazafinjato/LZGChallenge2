@@ -344,6 +344,35 @@ public class PlayersController : ControllerBase
         }
     }
 
+    [HttpPost("activate-all")]
+    public async Task<IActionResult> ActivateAllPlayers()
+    {
+        try
+        {
+            var allPlayers = await _context.Players
+                .Find(p => true)
+                .ToListAsync();
+
+            var inactivePlayers = allPlayers.Where(p => !p.IsActive).ToList();
+            
+            _logger.LogInformation($"Found {allPlayers.Count} total players, {inactivePlayers.Count} inactive");
+            
+            foreach (var player in allPlayers)
+            {
+                player.IsActive = true;
+                await _context.Players.ReplaceOneAsync(p => p.Id == player.Id, player);
+            }
+
+            _logger.LogInformation($"Activated all {allPlayers.Count} players");
+            return Ok($"Activated all {allPlayers.Count} players (were {inactivePlayers.Count} inactive)");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating all players");
+            return StatusCode(500, "Erreur lors de l'activation des joueurs");
+        }
+    }
+
     [HttpPost("refresh-all")]
     public async Task<IActionResult> RefreshAllPlayers()
     {
